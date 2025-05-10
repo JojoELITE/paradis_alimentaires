@@ -5,7 +5,7 @@ import MoyensPaiement from "@/components/moyens-paiement"
 export default function PaymentMethodsPage() {
   return (
     <main className="flex min-h-screen flex-col pt-32 pb-16">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 py-10">
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold mb-4">Moyens de Paiement</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
