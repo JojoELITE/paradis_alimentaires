@@ -45,12 +45,14 @@ model User {
   email         String?   @unique
   emailVerified DateTime? @map("email_verified")
   image         String?
-  role          String    @default("user")  // New field for role, default is 'user'
+  password      String?   // <- Ajout du champ password
+  role          String    @default("user")  // <- Champ rôle déjà présent
   accounts      Account[]
   sessions      Session[]
 
   @@map("users")
 }
+
 
 model VerificationToken {
   identifier String
