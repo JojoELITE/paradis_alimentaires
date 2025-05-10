@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { MapPin, Phone, Mail, Clock, Send, CheckCircle } from "lucide-react"
+import Banner from "@/components/banner"
 
 export default function ContactPage() {
   const [name, setName] = useState("")
@@ -35,11 +36,17 @@ export default function ContactPage() {
   return (
     <main className="flex min-h-screen flex-col pt-32 pb-16">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold mb-4">Contactez-nous</h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Nous sommes là pour vous aider. N'hésitez pas à nous contacter pour toute question ou demande d'information.
-          </p>
+        {/* Banner Section */}
+        <div className="mb-16">
+          <Banner
+            title="Contactez-nous"
+            description="Nous sommes là pour vous aider. N'hésitez pas à nous contacter pour toute question ou demande d'information."
+            buttonText="Nos produits"
+            buttonLink="/produits"
+            image="/images/hero2.jpeg"
+            bgColor="bg-logo-green"
+            position="right"
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

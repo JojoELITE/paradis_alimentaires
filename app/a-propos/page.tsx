@@ -2,18 +2,23 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, Users, ShieldCheck, Truck, Award, Leaf } from "lucide-react"
+import Banner from "@/components/banner"
 
 export default function AboutPage() {
   return (
     <main className="flex min-h-screen flex-col pt-32 pb-16">
       <div className="container mx-auto px-4">
-        {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl font-bold mb-4">À propos de Paradis Alimentaire</h1>
-          <p className="text-muted-foreground max-w-3xl mx-auto">
-            Découvrez notre histoire, notre mission et notre engagement envers la qualité et la satisfaction de nos
-            clients.
-          </p>
+        {/* Banner Section */}
+        <div className="mb-16">
+          <Banner
+            title="À propos de Paradis Alimentaire"
+            description="Découvrez notre histoire, notre mission et notre engagement envers la qualité et la satisfaction de nos clients."
+            buttonText="Nos produits"
+            buttonLink="/produits"
+            image="/images/grocery.png"
+            bgColor="bg-navy-blue"
+            position="left"
+          />
         </div>
 
         {/* Our Story */}

@@ -95,6 +95,36 @@ const products = [
     isOnSale: false,
     specialPath: "/produits/jus-little-star",
   },
+  {
+    id: 9,
+    name: "Chips Crunch",
+    price: 2990,
+    oldPrice: 3990,
+    image: "/images/hero3.jpeg",
+    category: "Snacks",
+    isNew: true,
+    isOnSale: true,
+  },
+  {
+    id: 10,
+    name: "Chocolat Eni",
+    price: 3990,
+    oldPrice: 4990,
+    image: "/images/hero1.jpeg",
+    category: "Snacks",
+    isNew: true,
+    isOnSale: true,
+  },
+  {
+    id: 11,
+    name: "Tomates fraîches bio",
+    price: 4990,
+    oldPrice: 6990,
+    image: "/images/tomato.png",
+    category: "Légumes",
+    isNew: false,
+    isOnSale: true,
+  },
 ]
 
 export default function FeaturedProducts() {
@@ -110,7 +140,7 @@ export default function FeaturedProducts() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {products.slice(0, 8).map((product) => (
+          {products.slice(0, 12).map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
