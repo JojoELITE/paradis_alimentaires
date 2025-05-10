@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
-import { FaFacebookF, FaInstagram, FaXTwitter } from "react-icons/fa6"
+import { FaWhatsapp } from "react-icons/fa";
+import { FaFacebookF, FaInstagram} from "react-icons/fa6"
 import { useCart } from "@/hooks/use-cart"
 import { useFavorites } from "@/hooks/use-favorites"
 import CurrencySelector from "@/components/currency-selector"
@@ -211,7 +212,7 @@ export default function Navbar() {
                   <FaInstagram className="h-4 w-4" />
                 </Link>
                 <Link href="#" className="hover:text-primary transition-colors">
-                  <FaXTwitter className="h-4 w-4" />
+                  <FaWhatsapp />
                 </Link>
               </div>
             </div>
@@ -317,7 +318,7 @@ export default function Navbar() {
                   <FaInstagram className="h-5 w-5" />
                 </Link>
                 <Link href="#" className="text-gray-800 hover:text-primary">
-                  <FaXTwitter className="h-5 w-5" />
+                <FaWhatsapp />
                 </Link>
               </div>
             </div>
