@@ -4,30 +4,66 @@ import type React from "react"
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import { FaFacebookF, FaGoogle } from "react-icons/fa6"
 import { Eye, EyeOff } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/client/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      })
+
+      const data = await res.json()
+      console.log('Login response:', data)
+      if (res.ok && data.success) {
+        toast({
+          title: "Connexion réussie",
+          description: "Bienvenue sur Paradis Alimentaire!",
+        })
+        // Stocker le token
+        localStorage.setItem('token', data.token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        router.push('/')
+      } else {
+        toast({
+          title: "Erreur de connexion",
+          description: data.message || "Email ou mot de passe incorrect",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      toast({
+        title: "Erreur de connexion",
+        description: "Impossible de se connecter au serveur",
+        variant: "destructive",
+      })
+    } finally {
       setIsLoading(false)
-      // Redirect to home page
-      window.location.href = "/"
-    }, 1500)
+    }
   }
 
   return (
@@ -37,14 +73,14 @@ export default function LoginPage() {
           <Link href="/" className="inline-block">
             <Image src="/images/logo.png" alt="Paradis Alimentaire" width={150} height={60} className="mx-auto" />
           </Link>
-          <h1 className="text-2xl font-bold mt-6">Connexion à votre compte</h1>
+          <h1 className="text-2xl font-bold mt-6">Connexion</h1>
           <p className="text-muted-foreground mt-2">
-            Accédez à votre compte pour gérer vos commandes et vos informations personnelles
+            Connectez-vous à votre compte pour accéder à vos commandes
           </p>
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <Label htmlFor="email">Email</Label>
               <Input
@@ -59,12 +95,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <div className="flex justify-between items-center">
-                <Label htmlFor="password">Mot de passe</Label>
-                <Link href="/mot-de-passe-oublie" className="text-sm text-primary hover:underline">
-                  Mot de passe oublié?
-                </Link>
-              </div>
+              <Label htmlFor="password">Mot de passe</Label>
               <div className="relative mt-1">
                 <Input
                   id="password"
@@ -83,13 +114,6 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-            </div>
-
-            <div className="flex items-center">
-              <Checkbox id="remember" />
-              <Label htmlFor="remember" className="ml-2 text-sm cursor-pointer">
-                Se souvenir de moi
-              </Label>
             </div>
 
             <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
@@ -119,7 +143,7 @@ export default function LoginPage() {
 
           <div className="mt-8 text-center">
             <p className="text-sm text-muted-foreground">
-              Vous n'avez pas de compte?{" "}
+              Pas encore de compte?{" "}
               <Link href="/inscription" className="text-primary font-medium hover:underline">
                 S'inscrire
               </Link>

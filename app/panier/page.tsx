@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react"
@@ -8,14 +8,81 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useCart } from "@/hooks/use-cart"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/hooks/use-auth" // Supposons que vous avez un hook d'auth
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, subtotal, clearCart } = useCart()
+  const { items, removeItem, updateQuantity, subtotal, clearCart, setItems } = useCart()
   const [couponCode, setCouponCode] = useState("")
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const { user } = useAuth() // Récupérer l'utilisateur connecté
 
   const shipping = 2500 // 2500 FCFA for shipping
   const total = subtotal + shipping
+
+  // Récupérer le panier depuis le backend si l'utilisateur est connecté
+// Récupérer le panier depuis le backend
+useEffect(() => {
+  const fetchCart = async () => {
+    if (user?.id) {
+      setIsLoading(true)
+      try {
+        const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/cart/${user.id}`)
+        const data = await response.json()
+        
+        if (data.success && data.data) {
+          // Convertir les données du backend au format du hook useCart
+          const cartItems = data.data.items.map((item: any) => ({
+            id: item.product_id, // ou item.id selon votre besoin
+            name: item.product?.name || "Produit",
+            price: item.product?.price || 0,
+            quantity: item.quantity,
+            image: item.product?.image || "/placeholder.svg",
+            category: item.product?.category || "Produit"
+          }))
+          setItems(cartItems)
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement du panier:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    } else {
+      setIsLoading(false)
+    }
+  }
+
+  fetchCart()
+}, [user, setItems])
+
+  // Synchroniser les changements du panier avec le backend
+  useEffect(() => {
+    const syncCart = async () => {
+      if (user?.id && items.length > 0) {
+        try {
+          await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/cart/update", {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              items: items.map(item => ({
+                id: item.id,
+                quantity: item.quantity
+              }))
+            })
+          })
+        } catch (error) {
+          console.error("Erreur lors de la synchronisation:", error)
+        }
+      }
+    }
+
+    // Debounce pour éviter trop d'appels
+    const timeoutId = setTimeout(syncCart, 1000)
+    return () => clearTimeout(timeoutId)
+  }, [items, user])
 
   const handleApplyCoupon = () => {
     if (!couponCode) return
@@ -28,6 +95,17 @@ export default function CartPage() {
       // Here you would normally apply the discount
       setCouponCode("")
     }, 1000)
+  }
+
+  if (isLoading) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center pt-32 pb-16">
+        <div className="container mx-auto px-4 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Chargement de votre panier...</p>
+        </div>
+      </main>
+    )
   }
 
   if (items.length === 0) {

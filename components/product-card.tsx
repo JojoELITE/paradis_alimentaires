@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import { useState } from "react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +11,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useCart } from "@/hooks/use-cart"
 import { useFavorites } from "@/hooks/use-favorites"
+import { useAuth } from "@/hooks/use-auth"
 import { toast } from "@/components/ui/use-toast"
 
 interface ProductCardProps {
@@ -29,12 +30,49 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart()
-  const { addItem: addToFavorites, removeItem: removeFromFavorites, isFavorite } = useFavorites()
+  const { addItem: addToFavorites, removeItem: removeFromFavorites, isFavorite, syncFavorites } = useFavorites()
+  const { user } = useAuth()
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
 
+    const userId = user?.uuid || null
+
+    try {
+      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/cart/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userId,
+          productId: product.id,
+          quantity: 1,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Impossible d'ajouter au panier")
+      }
+
+      toast({
+        title: "Produit ajouté au panier",
+        description: `${product.name} a été ajouté à votre panier.`,
+      })
+    } catch (error) {
+      console.error("Erreur panier:", error)
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : `${product.name} n'a pas pu être ajouté au panier.`,
+        variant: "destructive",
+      })
+    }
+
+    // Ajouter au panier local pour réactivité UI
     addItem({
       id: product.id,
       name: product.name,
@@ -43,35 +81,93 @@ export default function ProductCard({ product }: ProductCardProps) {
       quantity: 1,
       category: product.category,
     })
-
-    toast({
-      title: "Produit ajouté au panier",
-      description: `${product.name} a été ajouté à votre panier.`,
-    })
   }
 
-  const handleToggleFavorite = (e: React.MouseEvent) => {
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    
+    setIsLoading(true)
 
-    if (isFavorite(product.id)) {
-      removeFromFavorites(product.id)
+    // Si l'utilisateur n'est pas connecté, utiliser le localStorage
+    if (!user?.uuid) {
+      if (isFavorite(product.id)) {
+        removeFromFavorites(product.id)
+        toast({
+          title: "Produit retiré des favoris",
+          description: `${product.name} a été retiré de vos favoris.`,
+        })
+      } else {
+        addToFavorites({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+          category: product.category,
+        })
+        toast({
+          title: "Produit ajouté aux favoris",
+          description: `${product.name} a été ajouté à vos favoris.`,
+        })
+      }
+      setIsLoading(false)
+      return
+    }
+
+    // Si l'utilisateur est connecté, utiliser l'API
+    try {
+      const isFav = isFavorite(product.id)
+      const url = isFav 
+        ? "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/remove"
+        : "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/add"
+      
+      const requestBody = {
+        userId: user.uuid,
+        productId: product.id,
+      }
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || `Erreur ${response.status}`)
+      }
+
+      if (isFav) {
+        removeFromFavorites(product.id)
+        toast({
+          title: "Produit retiré des favoris",
+          description: `${product.name} a été retiré de vos favoris.`,
+        })
+      } else {
+        addToFavorites({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+          category: product.category,
+        })
+        toast({
+          title: "Produit ajouté aux favoris",
+          description: `${product.name} a été ajouté à vos favoris.`,
+        })
+      }
+    } catch (error) {
+      console.error("Erreur favoris:", error)
       toast({
-        title: "Produit retiré des favoris",
-        description: `${product.name} a été retiré de vos favoris.`,
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Une erreur est survenue. Veuillez réessayer.",
+        variant: "destructive",
       })
-    } else {
-      addToFavorites({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.image,
-        category: product.category,
-      })
-      toast({
-        title: "Produit ajouté aux favoris",
-        description: `${product.name} a été ajouté à vos favoris.`,
-      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -107,8 +203,15 @@ export default function ProductCard({ product }: ProductCardProps) {
               size="icon"
               className="absolute top-2 right-2 bg-white/80 hover:bg-white text-muted-foreground hover:text-primary rounded-full h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
               onClick={handleToggleFavorite}
+              disabled={isLoading}
             >
-              <Heart className={cn("h-5 w-5", isFavorite(product.id) ? "fill-primary text-primary" : "")} />
+              <Heart 
+                className={cn(
+                  "h-5 w-5 transition-all",
+                  isFavorite(product.id) ? "fill-primary text-primary" : "",
+                  isLoading && "animate-pulse"
+                )} 
+              />
             </Button>
           </div>
         </Link>

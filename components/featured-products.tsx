@@ -1,133 +1,100 @@
 "use client"
+
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import ProductCard from "@/components/product-card"
+import { useEffect, useState } from "react"
 
-const products = [
-  {
-    id: 1,
-    name: "Panier de fruits frais",
-    price: 24990,
-    oldPrice: 29990,
-    image: "/images/fruits.png",
-    category: "Fruits",
-    isNew: true,
-    isOnSale: true,
-  },
-  {
-    id: 2,
-    name: "Légumes bio assortis",
-    price: 19990,
-    oldPrice: null,
-    image: "/images/vegetables.png",
-    category: "Légumes",
-    isNew: true,
-    isOnSale: false,
-  },
-  {
-    id: 3,
-    name: "Filet de saumon premium",
-    price: 15990,
-    oldPrice: 18990,
-    image: "/images/fish.png",
-    category: "Poissons",
-    isNew: false,
-    isOnSale: true,
-  },
-  {
-    id: 4,
-    name: "Fromage artisanal",
-    price: 8990,
-    oldPrice: null,
-    image: "/images/dairy.png",
-    category: "Produits laitiers",
-    isNew: false,
-    isOnSale: false,
-  },
-  {
-    id: 5,
-    name: "Viande de bœuf premium",
-    price: 22990,
-    oldPrice: 25990,
-    image: "/images/meat.png",
-    category: "Viandes",
-    isNew: false,
-    isOnSale: true,
-  },
-  {
-    id: 6,
-    name: "Huile d'olive extra vierge",
-    price: 12990,
-    oldPrice: null,
-    image: "/images/grocery.png",
-    category: "Épicerie",
-    isNew: true,
-    isOnSale: false,
-  },
-  {
-    id: 7,
-    name: "Jus de fruits frais",
-    price: 9990,
-    oldPrice: 11990,
-    image: "/images/juice.png",
-    category: "Boissons",
-    isNew: false,
-    isOnSale: true,
-  },
-  {
-    id: 8,
-    name: "Biscuits artisanaux",
-    price: 14990,
-    oldPrice: null,
-    image: "/images/biscuit.png",
-    category: "Épicerie",
-    isNew: true,
-    isOnSale: false,
-  },
-  {
-    id: 100,
-    name: "Little Star - Jus d'Orange",
-    price: 1500,
-    oldPrice: null,
-    image: "/images/product/little-star-10.jpeg",
-    category: "Boissons",
-    isNew: true,
-    isOnSale: false,
-    specialPath: "/produits/jus-little-star",
-  },
-  {
-    id: 9,
-    name: "Chips Crunch",
-    price: 2990,
-    oldPrice: 3990,
-    image: "/images/hero3.jpeg",
-    category: "Snacks",
-    isNew: true,
-    isOnSale: true,
-  },
-  {
-    id: 10,
-    name: "Chocolat Eni",
-    price: 3990,
-    oldPrice: 4990,
-    image: "/images/hero1.jpeg",
-    category: "Snacks",
-    isNew: true,
-    isOnSale: true,
-  },
-  {
-    id: 11,
-    name: "Tomates fraîches bio",
-    price: 4990,
-    oldPrice: 6990,
-    image: "/images/tomato.png",
-    category: "Légumes",
-    isNew: false,
-    isOnSale: true,
-  },
-]
+interface Product {
+  id: number
+  name: string
+  price: number
+  old_price: number | null
+  image_url: string | null
+  category: string | null
+  is_new: boolean
+  is_on_sale: boolean
+  description?: string
+  stock?: number
+  rating?: number
+  reviews_count?: number
+}
 
 export default function FeaturedProducts() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/products')
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`)
+        }
+        
+        const data = await res.json()
+        
+        // Vérifier si la réponse est valide
+        if (data.success === true) {
+          setProducts(data.data || [])
+          setError(null)
+        } else {
+          throw new Error(data.message || 'Failed to fetch products')
+        }
+      } catch (err) {
+        console.error('Error fetching products:', err)
+        // Ne pas afficher d'erreur si c'est juste un problème réseau temporaire
+        // setError(err instanceof Error ? err.message : 'An error occurred')
+        setError(null) // On ignore l'erreur pour l'instant
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProducts()
+  }, [])
+
+  // Transformer les données de l'API
+  const formattedProducts = products.map((product) => ({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    oldPrice: product.old_price,
+    image: product.image_url || "/images/placeholder.png",
+    category: product.category || "Produits",
+    isNew: product.is_new,
+    isOnSale: product.is_on_sale,
+    description: product.description,
+    stock: product.stock,
+    rating: product.rating,
+    reviewsCount: product.reviews_count,
+  }))
+
+  // Limiter à 12 produits
+  const featuredProducts = formattedProducts.slice(0, 12)
+
+  if (loading) {
+    return (
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Produits Populaires</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Chargement des produits...
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="bg-gray-100 rounded-lg h-64 animate-pulse"></div>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section className="py-16">
       <div className="container mx-auto px-4">
@@ -139,11 +106,20 @@ export default function FeaturedProducts() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {products.slice(0, 12).map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {featuredProducts.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Aucun produit disponible pour le moment.</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Revenez bientôt pour découvrir notre sélection de produits frais et de qualité.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {featuredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
 
         <div className="mt-12 text-center">
           <Link href="/produits">

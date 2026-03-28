@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Search, Package, Truck, CheckCircle, Clock, AlertCircle } from "lucide-react"
 import Banner from "@/components/banner"
+import { toast } from "@/components/ui/use-toast"
 
 export default function SuiviCommandePage() {
   const [orderNumber, setOrderNumber] = useState("")
@@ -17,59 +18,97 @@ export default function SuiviCommandePage() {
   const [orderFound, setOrderFound] = useState<boolean | null>(null)
   const [orderDetails, setOrderDetails] = useState<any>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!orderNumber.trim()) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez saisir un numéro de commande",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSearching(true)
 
-    // Simuler une recherche
-    setTimeout(() => {
-      setIsSearching(false)
+    try {
+      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/tracking/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          orderNumber: orderNumber.trim(),
+          email: email.trim() || undefined,
+        }),
+      })
 
-      // Simuler un résultat de commande (pour démonstration)
-      if (orderNumber === "123456" || orderNumber === "PA123456") {
+      const data = await response.json()
+
+      if (data.success) {
         setOrderFound(true)
+        // Transformer les données pour le format attendu
         setOrderDetails({
-          number: "PA123456",
-          date: "10/05/2023",
-          status: "En cours de livraison",
-          statusCode: "shipping",
-          items: [
-            { id: 1, name: "Panier de fruits frais", quantity: 1, price: 24990 },
-            { id: 2, name: "Little Star - Jus d'Orange", quantity: 2, price: 1500 },
-            { id: 3, name: "Biscuits artisanaux", quantity: 1, price: 14990 },
-          ],
+          number: data.data.number,
+          date: new Date(data.data.date).toLocaleDateString("fr-FR"),
+          status: data.data.status,
+          statusCode: data.data.statusCode,
+          items: data.data.items.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
           shipping: {
-            method: "Livraison standard",
-            address: "123 Avenue des Champs-Élysées, 75008 Paris, France",
-            estimatedDelivery: "12/05/2023",
-            trackingEvents: [
-              { date: "10/05/2023 - 10:30", status: "Commande confirmée", icon: CheckCircle },
-              { date: "10/05/2023 - 14:45", status: "En cours de préparation", icon: Package },
-              { date: "11/05/2023 - 09:15", status: "Expédiée", icon: Truck },
-              { date: "12/05/2023 - 18:00", status: "Livraison prévue", icon: Clock },
-            ],
+            method: data.data.shipping.method,
+            address: data.data.shipping.address,
+            estimatedDelivery: data.data.shipping.estimatedDelivery 
+              ? new Date(data.data.shipping.estimatedDelivery).toLocaleDateString("fr-FR")
+              : "Non disponible",
+            trackingEvents: data.data.shipping.trackingEvents.map((event: any) => ({
+              date: new Date(event.date).toLocaleString("fr-FR"),
+              status: event.status,
+              icon: getStatusIconComponent(event.statusCode),
+            })),
           },
           payment: {
-            method: "Carte bancaire",
-            subtotal: 42980,
-            shipping: 2500,
-            total: 45480,
+            method: data.data.payment.method,
+            subtotal: data.data.payment.subtotal,
+            shipping: data.data.payment.shipping,
+            total: data.data.payment.total,
           },
         })
       } else {
         setOrderFound(false)
         setOrderDetails(null)
+        toast({
+          title: "Commande non trouvée",
+          description: data.message || "Aucune commande ne correspond à ces informations",
+          variant: "destructive",
+        })
       }
-    }, 1500)
+    } catch (error) {
+      console.error("Erreur:", error)
+      setOrderFound(false)
+      setOrderDetails(null)
+      toast({
+        title: "Erreur",
+        description: "Impossible de rechercher la commande. Veuillez réessayer.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSearching(false)
+    }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusColor = (statusCode: string) => {
+    switch (statusCode) {
       case "confirmed":
         return "bg-green-500"
       case "processing":
         return "bg-blue-500"
-      case "shipping":
+      case "shipped":
         return "bg-orange-500"
       case "delivered":
         return "bg-green-700"
@@ -80,20 +119,70 @@ export default function SuiviCommandePage() {
     }
   }
 
-  const getStatusIcon = (statusCode: string) => {
+  const getStatusIconComponent = (statusCode: string) => {
     switch (statusCode) {
       case "confirmed":
-        return <CheckCircle className="h-5 w-5" />
+        return CheckCircle
       case "processing":
-        return <Package className="h-5 w-5" />
-      case "shipping":
-        return <Truck className="h-5 w-5" />
+        return Package
+      case "shipped":
+        return Truck
       case "delivered":
-        return <CheckCircle className="h-5 w-5" />
+        return CheckCircle
       case "cancelled":
-        return <AlertCircle className="h-5 w-5" />
+        return AlertCircle
       default:
-        return <Clock className="h-5 w-5" />
+        return Clock
+    }
+  }
+
+  const getStatusIcon = (statusCode: string) => {
+    const Icon = getStatusIconComponent(statusCode)
+    return <Icon className="h-5 w-5" />
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("fr-FR").format(amount) + " FCFA"
+  }
+
+  const handleDownloadInvoice = async () => {
+    if (!orderDetails) return
+
+    try {
+      // Récupérer l'ID de la commande via le numéro
+      const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${orderDetails.number}`)
+      const data = await response.json()
+
+      if (data.success && data.data.id) {
+        // Télécharger la facture
+        const invoiceResponse = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${data.data.id}/invoice`)
+        const invoiceData = await invoiceResponse.json()
+
+        if (invoiceData.success) {
+          // Créer un fichier JSON à télécharger
+          const blob = new Blob([JSON.stringify(invoiceData.data, null, 2)], { type: "application/json" })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement("a")
+          a.href = url
+          a.download = `facture_${orderDetails.number}.json`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+
+          toast({
+            title: "Facture téléchargée",
+            description: "La facture a été téléchargée avec succès.",
+          })
+        }
+      }
+    } catch (error) {
+      console.error("Erreur:", error)
+      toast({
+        title: "Erreur",
+        description: "Impossible de télécharger la facture",
+        variant: "destructive",
+      })
     }
   }
 
@@ -123,11 +212,11 @@ export default function SuiviCommandePage() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label htmlFor="orderNumber" className="block text-sm font-medium mb-1">
-                      Numéro de commande
+                      Numéro de commande *
                     </label>
                     <Input
                       id="orderNumber"
-                      placeholder="Ex: PA123456"
+                      placeholder="Ex: CMD-1709568000000-123"
                       value={orderNumber}
                       onChange={(e) => setOrderNumber(e.target.value)}
                       required
@@ -148,6 +237,9 @@ export default function SuiviCommandePage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Recommandé si vous avez plusieurs commandes avec le même numéro.
+                    </p>
                   </div>
 
                   <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isSearching}>
@@ -244,7 +336,7 @@ export default function SuiviCommandePage() {
                               <p className="font-medium">{item.name}</p>
                               <p className="text-sm text-muted-foreground">Quantité: {item.quantity}</p>
                             </div>
-                            <p className="font-medium">{((item.price * item.quantity) / 100).toLocaleString()} FCFA</p>
+                            <p className="font-medium">{formatCurrency(item.price * item.quantity)}</p>
                           </div>
                         ))}
                       </div>
@@ -253,15 +345,15 @@ export default function SuiviCommandePage() {
                     <div className="border-t pt-4">
                       <div className="flex justify-between mb-1">
                         <span className="text-muted-foreground">Sous-total</span>
-                        <span>{(orderDetails.payment.subtotal / 100).toLocaleString()} FCFA</span>
+                        <span>{formatCurrency(orderDetails.payment.subtotal)}</span>
                       </div>
                       <div className="flex justify-between mb-1">
                         <span className="text-muted-foreground">Frais de livraison</span>
-                        <span>{(orderDetails.payment.shipping / 100).toLocaleString()} FCFA</span>
+                        <span>{formatCurrency(orderDetails.payment.shipping)}</span>
                       </div>
                       <div className="flex justify-between font-medium text-lg mt-2">
                         <span>Total</span>
-                        <span className="text-primary">{(orderDetails.payment.total / 100).toLocaleString()} FCFA</span>
+                        <span className="text-primary">{formatCurrency(orderDetails.payment.total)}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -273,22 +365,25 @@ export default function SuiviCommandePage() {
                   </CardHeader>
                   <CardContent>
                     <div className="relative">
-                      {orderDetails.shipping.trackingEvents.map((event: any, index: number) => (
-                        <div key={index} className="flex mb-6 last:mb-0">
-                          <div className="mr-4 relative">
-                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                              <event.icon className="h-5 w-5 text-primary" />
+                      {orderDetails.shipping.trackingEvents.map((event: any, index: number) => {
+                        const Icon = getStatusIconComponent(event.statusCode || event.status)
+                        return (
+                          <div key={index} className="flex mb-6 last:mb-0">
+                            <div className="mr-4 relative">
+                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Icon className="h-5 w-5 text-primary" />
+                              </div>
+                              {index < orderDetails.shipping.trackingEvents.length - 1 && (
+                                <div className="absolute top-10 left-1/2 transform -translate-x-1/2 w-0.5 h-full bg-gray-200" />
+                              )}
                             </div>
-                            {index < orderDetails.shipping.trackingEvents.length - 1 && (
-                              <div className="absolute top-10 left-1/2 transform -translate-x-1/2 w-0.5 h-full bg-gray-200" />
-                            )}
+                            <div>
+                              <p className="font-medium">{event.status}</p>
+                              <p className="text-sm text-muted-foreground">{event.date}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium">{event.status}</p>
-                            <p className="text-sm text-muted-foreground">{event.date}</p>
-                          </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -297,7 +392,9 @@ export default function SuiviCommandePage() {
                   <Button variant="outline" asChild>
                     <a href="/contact">Besoin d'aide ?</a>
                   </Button>
-                  <Button className="bg-primary hover:bg-primary/90">Télécharger la facture</Button>
+                  <Button className="bg-primary hover:bg-primary/90" onClick={handleDownloadInvoice}>
+                    Télécharger la facture
+                  </Button>
                 </div>
               </div>
             )}

@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Menu, Search, Heart, ShoppingCart, User, ChevronDown } from "lucide-react"
+import { Menu, Search, Heart, ShoppingCart, User, ChevronDown, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -16,7 +16,8 @@ import { useCart } from "@/hooks/use-cart"
 import { useFavorites } from "@/hooks/use-favorites"
 import CurrencySelector from "@/components/currency-selector"
 import LanguageSelector from "@/components/language-selector"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { toast } from "@/components/ui/use-toast"
 
 const routes = [
   { name: "ACCUEIL", path: "/" },
@@ -42,6 +43,7 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [user, setUser] = useState<any>(null)
   const pathname = usePathname()
   const router = useRouter()
   const { totalItems } = useCart()
@@ -60,6 +62,19 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
+  // Récupérer l'utilisateur du localStorage
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user')
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser)
+        setUser(userData)
+      } catch (e) {
+        console.error('Erreur parsing user:', e)
+      }
+    }
+  }, [])
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
@@ -67,6 +82,17 @@ export default function Navbar() {
       setSearchQuery("")
       setIsOpen(false)
     }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    setUser(null)
+    toast({
+      title: "Déconnexion réussie",
+      description: "Vous avez été déconnecté avec succès.",
+    })
+    router.push('/')
   }
 
   return (
@@ -107,37 +133,98 @@ export default function Navbar() {
 
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center space-x-6">
-              <div className="flex flex-col items-center">
-                <Link href="/favoris">
-                  <Button variant="ghost" size="icon" className="text-gray-700 relative">
-                    <Heart className="h-6 w-6" />
+              <Link href="/favoris" className="relative">
+                <Button variant="ghost" size="icon" className="text-gray-700 relative">
+                  <Heart className="h-6 w-6" />
+                  {totalFavorites > 0 && (
                     <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                       {totalFavorites}
                     </span>
-                  </Button>
-                </Link>
-              </div>
-              <div className="flex flex-col items-center">
-                <Link href="/panier">
-                  <Button variant="ghost" size="icon" className="text-gray-700 relative">
-                    <ShoppingCart className="h-6 w-6" />
+                  )}
+                </Button>
+              </Link>
+              <Link href="/panier" className="relative">
+                <Button variant="ghost" size="icon" className="text-gray-700 relative">
+                  <ShoppingCart className="h-6 w-6" />
+                  {totalItems > 0 && (
                     <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                       {totalItems}
                     </span>
-                  </Button>
-                </Link>
-              </div>
-              <div className="flex items-center">
-                <User className="h-6 w-6 text-gray-700 mr-2" />
-                <div className="text-sm">
-                  <Link href="/connexion" className="font-medium hover:text-primary">
-                    Connexion
-                  </Link>
-                  <Link href="/inscription" className="block hover:text-primary">
-                    S'inscrire
-                  </Link>
+                  )}
+                </Button>
+              </Link>
+              
+              {/* Desktop User Section */}
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-2 hover:bg-transparent p-0">
+                      <div className="bg-primary/10 rounded-full p-2">
+                        <User className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium text-gray-800 max-w-[120px] truncate text-sm">
+                          {user.full_name || user.email}
+                        </p>
+                        <p className="text-xs text-gray-500">Mon compte</p>
+                      </div>
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56" sideOffset={8}>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profil" className="cursor-pointer w-full">
+                        Mon profil
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/commandes" className="cursor-pointer w-full">
+                        Mes commandes
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/favoris" className="cursor-pointer w-full">
+                        Mes favoris
+                      </Link>
+                    </DropdownMenuItem>
+                    
+                    {/* Dashboard visible pour admin, superadmin ET marchant */}
+                    {(user.role === "admin" || user.role === "superadmin" || user.role === "marchant") && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard" className="cursor-pointer w-full">
+                          📊 Mon dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    
+                    <DropdownMenuSeparator />
+                    
+                    <DropdownMenuItem>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left flex items-center text-red-600 hover:text-red-700"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Déconnexion
+                      </button>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="bg-gray-100 rounded-full p-2">
+                    <User className="h-5 w-5 text-gray-600" />
+                  </div>
+                  <div className="text-sm">
+                    <Link href="/connexion" className="block font-medium hover:text-primary">
+                      Connexion
+                    </Link>
+                    <Link href="/inscription" className="block text-xs text-gray-500 hover:text-primary">
+                      S'inscrire
+                    </Link>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -163,7 +250,7 @@ export default function Navbar() {
                         <ChevronDown className="h-4 w-4 ml-1" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-[200px]">
+                    <DropdownMenuContent align="start" className="w-[200px]" sideOffset={8}>
                       {route.submenu.map((item) => (
                         <DropdownMenuItem key={item.path} asChild>
                           <Link
@@ -222,7 +309,7 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-white shadow-lg py-4 px-4 z-50">
+        <div className="md:hidden absolute top-full left-0 right-0 bg-white shadow-lg py-4 px-4 z-50 max-h-[80vh] overflow-y-auto">
           <form onSubmit={handleSearch} className="relative mb-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
@@ -288,6 +375,49 @@ export default function Navbar() {
                   Favoris ({totalFavorites})
                 </Link>
               </div>
+              
+              {/* Mobile User Section */}
+              {user ? (
+                <div className="py-2 border-t border-gray-200 mt-2">
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-gray-800 font-medium truncate max-w-[200px]">
+                      {user.full_name || user.email}
+                    </span>
+                    <button onClick={handleLogout} className="text-red-600 hover:text-red-700 text-sm">
+                      Déconnexion
+                    </button>
+                  </div>
+                  
+                  {/* Dashboard dans le menu mobile - CORRIGÉ */}
+                  {(user.role === "admin" || user.role === "superadmin" || user.role === "marchant") && (
+                    <Link
+                      href="/dashboard"
+                      className="block py-2 text-gray-800 hover:text-primary mt-2"
+                      onClick={() => setIsOpen(false)}
+                    >
+                    Mon dashboard
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <div className="py-2 border-t border-gray-200 mt-2">
+                  <Link
+                    href="/connexion"
+                    className="block py-2 text-gray-800 hover:text-primary"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Connexion
+                  </Link>
+                  <Link
+                    href="/inscription"
+                    className="block py-2 text-gray-800 hover:text-primary"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Inscription
+                  </Link>
+                </div>
+              )}
+              
               <Link
                 href="/moyens-de-paiement"
                 className="block py-2 text-gray-800 hover:text-primary"
@@ -318,7 +448,7 @@ export default function Navbar() {
                   <FaInstagram className="h-5 w-5" />
                 </Link>
                 <Link href="#" className="text-gray-800 hover:text-primary">
-                <FaWhatsapp />
+                  <FaWhatsapp />
                 </Link>
               </div>
             </div>

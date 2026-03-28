@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -7,14 +8,60 @@ import { Button } from "@/components/ui/button"
 import { ShoppingCart, Heart, Trash2, ShoppingBag } from "lucide-react"
 import { useFavorites } from "@/hooks/use-favorites"
 import { useCart } from "@/hooks/use-cart"
+import { useAuth } from "@/hooks/use-auth"
 import { toast } from "@/components/ui/use-toast"
 
-export default function FavoritesPage() {
-  const { items, removeItem } = useFavorites()
-  const { addItem } = useCart()
+interface FavoriteItem {
+  id: number
+  name: string
+  price: number
+  image: string
+  category: string
+}
 
-  const handleAddToCart = (item: (typeof items)[0]) => {
-    addItem({
+export default function FavoritesPage() {
+  const { items, removeItem, addItem: addToFavoritesLocal, setItems } = useFavorites()
+  const { addItem: addToCart } = useCart()
+  const { user } = useAuth()
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Charger les favoris depuis l'API si l'utilisateur est connecté
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (user?.uuid) {
+        setIsLoading(true)
+        try {
+          const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/favorites?userId=${user.uuid}`)
+          const data = await response.json()
+          
+          console.log("🔵 Favoris depuis API:", data)
+          
+          if (data.success && data.data) {
+            // Convertir les données API au format local
+            const favoriteItems = data.data.map((product: any) => ({
+              id: product.id,
+              name: product.name,
+              price: product.price,
+              image: product.image,
+              category: product.category
+            }))
+            setItems(favoriteItems)
+          }
+        } catch (error) {
+          console.error("❌ Erreur lors du chargement des favoris:", error)
+        } finally {
+          setIsLoading(false)
+        }
+      } else {
+        setIsLoading(false)
+      }
+    }
+
+    fetchFavorites()
+  }, [user, setItems])
+
+  const handleAddToCart = (item: FavoriteItem) => {
+    addToCart({
       id: item.id,
       name: item.name,
       price: item.price,
@@ -27,6 +74,58 @@ export default function FavoritesPage() {
       title: "Produit ajouté au panier",
       description: `${item.name} a été ajouté à votre panier.`,
     })
+  }
+
+  const handleRemoveFavorite = async (item: FavoriteItem) => {
+    // Supprimer localement d'abord pour l'UI réactive
+    removeItem(item.id)
+    
+    toast({
+      title: "Produit retiré des favoris",
+      description: `${item.name} a été retiré de vos favoris.`,
+    })
+
+    // Si l'utilisateur est connecté, supprimer aussi via l'API
+    if (user?.uuid) {
+      try {
+        const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/favorites/remove", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: user.uuid,
+            productId: item.id,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Erreur lors de la suppression")
+        }
+
+        console.log("✅ Favori supprimé de l'API")
+      } catch (error) {
+        console.error("❌ Erreur lors de la suppression API:", error)
+        // Si l'API échoue, remettre l'item
+        addToFavoritesLocal(item)
+        toast({
+          title: "Erreur",
+          description: "Impossible de supprimer des favoris. Veuillez réessayer.",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center pt-32 pb-16">
+        <div className="container mx-auto px-4 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Chargement de vos favoris...</p>
+        </div>
+      </main>
+    )
   }
 
   if (items.length === 0) {
@@ -81,11 +180,7 @@ export default function FavoritesPage() {
                       className="absolute top-2 right-2 bg-white/80 hover:bg-white text-red-500 hover:text-red-600 rounded-full h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                       onClick={(e) => {
                         e.preventDefault()
-                        removeItem(item.id)
-                        toast({
-                          title: "Produit retiré des favoris",
-                          description: `${item.name} a été retiré de vos favoris.`,
-                        })
+                        handleRemoveFavorite(item)
                       }}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -99,7 +194,11 @@ export default function FavoritesPage() {
                     <h3 className="font-semibold text-lg mb-2 line-clamp-2">{item.name}</h3>
                   </Link>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-lg">{(item.price / 100).toLocaleString()} FCFA</span>
+                    <span className="font-bold text-lg">
+                      {typeof item.price === 'number' 
+                        ? (item.price / 100).toLocaleString() 
+                        : item.price.toLocaleString()} FCFA
+                    </span>
                   </div>
                 </div>
               </CardContent>

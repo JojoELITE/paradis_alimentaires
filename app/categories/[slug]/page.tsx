@@ -1,3 +1,5 @@
+"use client"
+
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
@@ -5,451 +7,166 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ShoppingCart, Heart, Filter } from "lucide-react"
+import { useEffect, useState } from "react"
+import { useCart } from "@/hooks/use-cart"
+import { useFavorites } from "@/hooks/use-favorites"
+import { toast } from "@/components/ui/use-toast"
 
-// Définition des catégories
-const categories = [
-  {
-    slug: "fruits",
-    name: "Fruits",
-    description:
-      "Découvrez notre sélection de fruits frais et savoureux, soigneusement sélectionnés pour leur qualité et leur goût exceptionnel.",
-    image: "/images/fruits.png",
-  },
-  {
-    slug: "legumes",
-    name: "Légumes",
-    description: "Explorez notre gamme de légumes frais, cultivés avec soin pour vous offrir le meilleur de la nature.",
-    image: "/images/vegetables.png",
-  },
-  {
-    slug: "viandes",
-    name: "Viandes",
-    description:
-      "Savourez nos viandes de qualité supérieure, sélectionnées pour leur tendreté et leur saveur incomparable.",
-    image: "/images/meat.png",
-  },
-  {
-    slug: "poissons",
-    name: "Poissons",
-    description: "Découvrez notre sélection de poissons frais, pêchés dans le respect de l'environnement.",
-    image: "/images/fish.png",
-  },
-  {
-    slug: "produits-laitiers",
-    name: "Produits laitiers",
-    description:
-      "Explorez notre gamme de produits laitiers, élaborés avec le plus grand soin pour vous offrir des saveurs authentiques.",
-    image: "/images/dairy.png",
-  },
-  {
-    slug: "epicerie",
-    name: "Épicerie",
-    description:
-      "Découvrez notre sélection de produits d'épicerie fine, soigneusement choisis pour leur qualité et leur authenticité.",
-    image: "/images/grocery.png",
-  },
-]
+interface Category {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  image_url: string | null
+  icon_name: string | null
+  product_count: number
+}
 
-// Produits par catégorie
-const productsByCategory = {
-  fruits: [
-    {
-      id: 1,
-      name: "Panier de fruits frais",
-      price: 24.99,
-      oldPrice: 29.99,
-      image: "/images/fruits.png",
-      category: "Fruits",
-      isNew: true,
-      isOnSale: true,
-    },
-    {
-      id: 2,
-      name: "Pommes Bio",
-      price: 5.99,
-      oldPrice: null,
-      image: "/images/fruits.png",
-      category: "Fruits",
-      isNew: false,
-      isOnSale: false,
-    },
-    {
-      id: 3,
-      name: "Bananes Premium",
-      price: 4.99,
-      oldPrice: 6.99,
-      image: "/images/fruits.png",
-      category: "Fruits",
-      isNew: false,
-      isOnSale: true,
-    },
-    {
-      id: 4,
-      name: "Oranges Juteuses",
-      price: 7.99,
-      oldPrice: null,
-      image: "/images/fruits.png",
-      category: "Fruits",
-      isNew: true,
-      isOnSale: false,
-    },
-    {
-      id: 5,
-      name: "Mangues Exotiques",
-      price: 12.99,
-      oldPrice: 15.99,
-      image: "/images/fruits.png",
-      category: "Fruits",
-      isNew: false,
-      isOnSale: true,
-    },
-    {
-      id: 6,
-      name: "Fraises Fraîches",
-      price: 8.99,
-      oldPrice: null,
-      image: "/images/fruits.png",
-      category: "Fruits",
-      isNew: true,
-      isOnSale: false,
-    },
-  ],
-  legumes: [
-    {
-      id: 1,
-      name: "Légumes bio assortis",
-      price: 19.99,
-      oldPrice: null,
-      image: "/images/vegetables.png",
-      category: "Légumes",
-      isNew: true,
-      isOnSale: false,
-    },
-    {
-      id: 2,
-      name: "Tomates Fraîches",
-      price: 3.99,
-      oldPrice: 4.99,
-      image: "/images/tomato.png",
-      category: "Légumes",
-      isNew: false,
-      isOnSale: true,
-    },
-    {
-      id: 3,
-      name: "Carottes Bio",
-      price: 2.99,
-      oldPrice: null,
-      image: "/images/vegetables.png",
-      category: "Légumes",
-      isNew: true,
-      isOnSale: false,
-    },
-    {
-      id: 4,
-      name: "Poivrons Colorés",
-      price: 5.99,
-      oldPrice: 7.99,
-      image: "/images/vegetables.png",
-      category: "Légumes",
-      isNew: false,
-      isOnSale: true,
-    },
-    {
-      id: 5,
-      name: "Courgettes Fraîches",
-      price: 4.49,
-      oldPrice: null,
-      image: "/images/vegetables.png",
-      category: "Légumes",
-      isNew: false,
-      isOnSale: false,
-    },
-    {
-      id: 6,
-      name: "Aubergines Bio",
-      price: 6.99,
-      oldPrice: 8.99,
-      image: "/images/vegetables.png",
-      category: "Légumes",
-      isNew: true,
-      isOnSale: true,
-    },
-  ],
-  viandes: [
-    {
-      id: 1,
-      name: "Viande de bœuf premium",
-      price: 22.99,
-      oldPrice: 25.99,
-      image: "/images/meat.png",
-      category: "Viandes",
-      isNew: false,
-      isOnSale: true,
-    },
-    {
-      id: 2,
-      name: "Poulet Fermier",
-      price: 15.99,
-      oldPrice: null,
-      image: "/images/meat.png",
-      category: "Viandes",
-      isNew: true,
-      isOnSale: false,
-    },
-    {
-      id: 3,
-      name: "Côtes d'Agneau",
-      price: 18.99,
-      oldPrice: 21.99,
-      image: "/images/meat.png",
-      category: "Viandes",
-      isNew: false,
-      isOnSale: true,
-    },
-    {
-      id: 4,
-      name: "Filet de Porc",
-      price: 14.99,
-      oldPrice: null,
-      image: "/images/meat.png",
-      category: "Viandes",
-      isNew: false,
-      isOnSale: false,
-    },
-    {
-      id: 5,
-      name: "Steak Haché Bio",
-      price: 12.99,
-      oldPrice: 14.99,
-      image: "/images/meat.png",
-      category: "Viandes",
-      isNew: true,
-      isOnSale: true,
-    },
-    {
-      id: 6,
-      name: "Saucisses Artisanales",
-      price: 9.99,
-      oldPrice: null,
-      image: "/images/meat.png",
-      category: "Viandes",
-      isNew: true,
-      isOnSale: false,
-    },
-  ],
-  poissons: [
-    {
-      id: 1,
-      name: "Filet de saumon premium",
-      price: 15.99,
-      oldPrice: 18.99,
-      image: "/images/fish.png",
-      category: "Poissons",
-      isNew: false,
-      isOnSale: true,
-    },
-    {
-      id: 2,
-      name: "Thon Frais",
-      price: 19.99,
-      oldPrice: null,
-      image: "/images/fish.png",
-      category: "Poissons",
-      isNew: true,
-      isOnSale: false,
-    },
-    {
-      id: 3,
-      name: "Crevettes Sauvages",
-      price: 16.99,
-      oldPrice: 19.99,
-      image: "/images/fish.png",
-      category: "Poissons",
-      isNew: false,
-      isOnSale: true,
-    },
-    {
-      id: 4,
-      name: "Filet de Cabillaud",
-      price: 14.99,
-      oldPrice: null,
-      image: "/images/fish.png",
-      category: "Poissons",
-      isNew: false,
-      isOnSale: false,
-    },
-    {
-      id: 5,
-      name: "Moules Fraîches",
-      price: 9.99,
-      oldPrice: 12.99,
-      image: "/images/fish.png",
-      category: "Poissons",
-      isNew: true,
-      isOnSale: true,
-    },
-    {
-      id: 6,
-      name: "Dorade Entière",
-      price: 17.99,
-      oldPrice: null,
-      image: "/images/fish.png",
-      category: "Poissons",
-      isNew: true,
-      isOnSale: false,
-    },
-  ],
-  "produits-laitiers": [
-    {
-      id: 1,
-      name: "Fromage artisanal",
-      price: 8.99,
-      oldPrice: null,
-      image: "/images/dairy.png",
-      category: "Produits laitiers",
-      isNew: false,
-      isOnSale: false,
-    },
-    {
-      id: 2,
-      name: "Yaourt Nature Bio",
-      price: 4.99,
-      oldPrice: 5.99,
-      image: "/images/dairy.png",
-      category: "Produits laitiers",
-      isNew: false,
-      isOnSale: true,
-    },
-    {
-      id: 3,
-      name: "Beurre de Baratte",
-      price: 6.99,
-      oldPrice: null,
-      image: "/images/dairy.png",
-      category: "Produits laitiers",
-      isNew: true,
-      isOnSale: false,
-    },
-    {
-      id: 4,
-      name: "Crème Fraîche",
-      price: 3.99,
-      oldPrice: 4.99,
-      image: "/images/dairy.png",
-      category: "Produits laitiers",
-      isNew: false,
-      isOnSale: true,
-    },
-    {
-      id: 5,
-      name: "Lait Bio",
-      price: 2.99,
-      oldPrice: null,
-      image: "/images/dairy.png",
-      category: "Produits laitiers",
-      isNew: false,
-      isOnSale: false,
-    },
-    {
-      id: 6,
-      name: "Fromage de Chèvre",
-      price: 7.99,
-      oldPrice: 9.99,
-      image: "/images/dairy.png",
-      category: "Produits laitiers",
-      isNew: true,
-      isOnSale: true,
-    },
-  ],
-  epicerie: [
-    {
-      id: 1,
-      name: "Huile d'olive extra vierge",
-      price: 12.99,
-      oldPrice: null,
-      image: "/images/grocery.png",
-      category: "Épicerie",
-      isNew: true,
-      isOnSale: false,
-    },
-    {
-      id: 2,
-      name: "Miel naturel",
-      price: 9.99,
-      oldPrice: 11.99,
-      image: "/images/grocery.png",
-      category: "Épicerie",
-      isNew: false,
-      isOnSale: true,
-    },
-    {
-      id: 3,
-      name: "Biscuits artisanaux",
-      price: 14.99,
-      oldPrice: null,
-      image: "/images/biscuit.png",
-      category: "Épicerie",
-      isNew: true,
-      isOnSale: false,
-    },
-    {
-      id: 4,
-      name: "Jus de fruits frais",
-      price: 9.99,
-      oldPrice: 11.99,
-      image: "/images/juice.png",
-      category: "Épicerie",
-      isNew: false,
-      isOnSale: true,
-    },
-    {
-      id: 5,
-      name: "Thé Bio",
-      price: 8.99,
-      oldPrice: null,
-      image: "/images/grocery.png",
-      category: "Épicerie",
-      isNew: true,
-      isOnSale: false,
-    },
-    {
-      id: 6,
-      name: "Chocolat Artisanal",
-      price: 6.99,
-      oldPrice: 8.99,
-      image: "/images/grocery.png",
-      category: "Épicerie",
-      isNew: false,
-      isOnSale: true,
-    },
-  ],
+interface Product {
+  id: number
+  name: string
+  price: number
+  old_price: number | null
+  image_url: string | null
+  category_id: string | null
+  category?: {
+    id: string
+    name: string
+    slug: string
+  }
+  is_new: boolean
+  is_on_sale: boolean
+  stock: number
+  description?: string
 }
 
 export default function CategoryPage({ params }: { params: { slug: string } }) {
   const { slug } = params
+  const [category, setCategory] = useState<Category | null>(null)
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { addItem } = useCart()
+  const { addItem: addToFavorites, removeItem: removeFromFavorites, isFavorite } = useFavorites()
 
-  // Trouver la catégorie correspondante
-  const category = categories.find((cat) => cat.slug === slug)
+  useEffect(() => {
+    const fetchCategoryAndProducts = async () => {
+      try {
+        setLoading(true)
+        
+        // Récupérer les détails de la catégorie
+        const categoryRes = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${slug}`)
+        
+        if (!categoryRes.ok) {
+          if (categoryRes.status === 404) {
+            notFound()
+          }
+          throw new Error(`HTTP error! status: ${categoryRes.status}`)
+        }
+        
+        const categoryData = await categoryRes.json()
+        
+        if (categoryData.success === true) {
+          setCategory(categoryData.data)
+          setProducts(categoryData.data.products || [])
+        } else {
+          throw new Error(categoryData.message || 'Failed to fetch category')
+        }
+      } catch (err) {
+        console.error('Error fetching category:', err)
+        setError(err instanceof Error ? err.message : 'An error occurred')
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  // Si la catégorie n'existe pas, retourner une page 404
-  if (!category) {
-    notFound()
+    fetchCategoryAndProducts()
+  }, [slug])
+
+  const handleAddToCart = (product: Product) => {
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image_url || "/images/placeholder.png",
+      quantity: 1,
+      category: product.category?.name || "Produits",
+    })
+
+    toast({
+      title: "Produit ajouté au panier",
+      description: `${product.name} a été ajouté à votre panier.`,
+    })
   }
 
-  // Récupérer les produits de cette catégorie
-  const products = productsByCategory[slug as keyof typeof productsByCategory] || []
+  const handleToggleFavorite = (product: Product) => {
+    if (isFavorite(product.id)) {
+      removeFromFavorites(product.id)
+      toast({
+        title: "Produit retiré des favoris",
+        description: `${product.name} a été retiré de vos favoris.`,
+      })
+    } else {
+      addToFavorites({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image_url || "/images/placeholder.png",
+        category: product.category?.name || "Produits",
+      })
+      toast({
+        title: "Produit ajouté aux favoris",
+        description: `${product.name} a été ajouté à vos favoris.`,
+      })
+    }
+  }
+
+  const formatPrice = (price: number) => {
+    return price.toLocaleString()
+  }
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen flex-col pt-32 pb-16">
+        <div className="container mx-auto px-4">
+          <div className="animate-pulse">
+            <div className="h-[300px] bg-gray-200 rounded-lg mb-12"></div>
+            <div className="h-12 bg-gray-200 rounded mb-8"></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-80 bg-gray-200 rounded-lg"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  if (error || !category) {
+    notFound()
+  }
 
   return (
     <main className="flex min-h-screen flex-col pt-32 pb-16">
       <div className="container mx-auto px-4">
         {/* Hero Section */}
         <div className="relative h-[300px] rounded-lg overflow-hidden mb-12">
-          <Image src={category.image || "/placeholder.svg"} alt={category.name} fill className="object-cover" />
+          <Image 
+            src={category.image_url || "/images/placeholder.png"} 
+            alt={category.name} 
+            fill 
+            className="object-cover" 
+          />
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex items-center">
             <div className="p-8 max-w-xl">
               <h1 className="text-4xl font-bold text-white mb-4">{category.name}</h1>
-              <p className="text-white/90">{category.description}</p>
+              <p className="text-white/90">
+                {category.description || `Découvrez notre sélection de ${category.name.toLowerCase()} de qualité.`}
+              </p>
+              {category.product_count > 0 && (
+                <p className="text-white/80 mt-2">{category.product_count} produits disponibles</p>
+              )}
             </div>
           </div>
         </div>
@@ -487,81 +204,98 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-12">
-          {products.map((product) => (
-            <Card
-              key={product.id}
-              className="overflow-hidden group border-none shadow-md hover:shadow-lg transition-all duration-300"
-            >
-              <CardContent className="p-0 relative">
-                <Link href={`/produits/${product.id}`}>
-                  <div className="aspect-square relative overflow-hidden">
-                    <Image
-                      src={product.image || "/placeholder.svg"}
-                      alt={product.name}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
+        {products.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-12">
+            {products.map((product) => (
+              <Card
+                key={product.id}
+                className="overflow-hidden group border-none shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                <CardContent className="p-0 relative">
+                  <Link href={`/produits/${product.id}`}>
+                    <div className="aspect-square relative overflow-hidden">
+                      <Image
+                        src={product.image_url || "/images/placeholder.png"}
+                        alt={product.name}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
 
-                    {/* Badges */}
-                    <div className="absolute top-2 left-2 flex flex-col gap-2">
-                      {product.isNew && <Badge className="bg-green-500 hover:bg-green-600">Nouveau</Badge>}
-                      {product.isOnSale && <Badge className="bg-primary hover:bg-primary/90">Promo</Badge>}
+                      {/* Badges */}
+                      <div className="absolute top-2 left-2 flex flex-col gap-2">
+                        {product.is_new && <Badge className="bg-green-500 hover:bg-green-600">Nouveau</Badge>}
+                        {product.is_on_sale && <Badge className="bg-primary hover:bg-primary/90">Promo</Badge>}
+                      </div>
+
+                      {/* Favorite Button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 bg-white/80 hover:bg-white text-muted-foreground hover:text-primary rounded-full h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleToggleFavorite(product)
+                        }}
+                      >
+                        <Heart className={`h-5 w-5 ${isFavorite(product.id) ? "fill-primary text-primary" : ""}`} />
+                      </Button>
                     </div>
-
-                    {/* Favorite Button */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 bg-white/80 hover:bg-white text-muted-foreground hover:text-primary rounded-full h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    >
-                      <Heart className="h-5 w-5" />
-                    </Button>
-                  </div>
-                </Link>
-
-                <div className="p-4">
-                  <div className="text-sm text-muted-foreground mb-1">{product.category}</div>
-                  <Link href={`/produits/${product.id}`} className="hover:underline">
-                    <h3 className="font-semibold text-lg mb-2 line-clamp-2">{product.name}</h3>
                   </Link>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-lg">{product.price.toLocaleString()} FCFA</span>
-                    {product.oldPrice && (
-                      <span className="text-muted-foreground line-through text-sm">
-                        {product.oldPrice.toLocaleString()} FCFA
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
 
-              <CardFooter className="p-4 pt-0">
-                <Button className="w-full gap-2 bg-primary hover:bg-primary/90">
-                  <ShoppingCart className="h-4 w-4" />
-                  Ajouter au panier
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                  <div className="p-4">
+                    <div className="text-sm text-muted-foreground mb-1">
+                      {product.category?.name || "Produits"}
+                    </div>
+                    <Link href={`/produits/${product.id}`} className="hover:underline">
+                      <h3 className="font-semibold text-lg mb-2 line-clamp-2">{product.name}</h3>
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-lg">{formatPrice(product.price)} FCFA</span>
+                      {product.old_price && (
+                        <span className="text-muted-foreground line-through text-sm">
+                          {formatPrice(product.old_price)} FCFA
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+
+                <CardFooter className="p-4 pt-0">
+                  <Button 
+                    className="w-full gap-2 bg-primary hover:bg-primary/90"
+                    onClick={() => handleAddToCart(product)}
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    Ajouter au panier
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Aucun produit disponible dans cette catégorie pour le moment.</p>
+          </div>
+        )}
 
         {/* Pagination */}
-        <div className="flex justify-center">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" disabled>
-              &lt;
-            </Button>
-            <Button variant="outline" className="bg-primary text-white">
-              1
-            </Button>
-            <Button variant="outline">2</Button>
-            <Button variant="outline">3</Button>
-            <Button variant="outline" size="icon">
-              &gt;
-            </Button>
+        {products.length > 0 && (
+          <div className="flex justify-center">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" disabled>
+                &lt;
+              </Button>
+              <Button variant="outline" className="bg-primary text-white">
+                1
+              </Button>
+              <Button variant="outline">2</Button>
+              <Button variant="outline">3</Button>
+              <Button variant="outline" size="icon">
+                &gt;
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </main>
   )

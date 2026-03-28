@@ -1,156 +1,97 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Filter } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import ProductCard from "@/components/product-card"
+import { useEffect, useState } from "react"
+import { useAuth } from "@/hooks/use-auth"
+import { toast } from "@/components/ui/use-toast"
 
-const products = [
-  {
-    id: 1,
-    name: "Panier de fruits frais",
-    price: 24990,
-    oldPrice: 29990,
-    image: "/images/fruits.png",
-    category: "Fruits",
-    isNew: true,
-    isOnSale: true,
-  },
-  {
-    id: 2,
-    name: "Légumes bio assortis",
-    price: 19990,
-    oldPrice: null,
-    image: "/images/vegetables.png",
-    category: "Légumes",
-    isNew: true,
-    isOnSale: false,
-  },
-  {
-    id: 3,
-    name: "Filet de saumon premium",
-    price: 15990,
-    oldPrice: 18990,
-    image: "/images/fish.png",
-    category: "Poissons",
-    isNew: false,
-    isOnSale: true,
-  },
-  {
-    id: 4,
-    name: "Fromage artisanal",
-    price: 8990,
-    oldPrice: null,
-    image: "/images/dairy.png",
-    category: "Produits laitiers",
-    isNew: false,
-    isOnSale: false,
-  },
-  {
-    id: 5,
-    name: "Viande de bœuf premium",
-    price: 22990,
-    oldPrice: 25990,
-    image: "/images/meat.png",
-    category: "Viandes",
-    isNew: false,
-    isOnSale: true,
-  },
-  {
-    id: 6,
-    name: "Huile d'olive extra vierge",
-    price: 12990,
-    oldPrice: null,
-    image: "/images/grocery.png",
-    category: "Épicerie",
-    isNew: true,
-    isOnSale: false,
-  },
-  {
-    id: 7,
-    name: "Jus de fruits frais",
-    price: 9990,
-    oldPrice: 11990,
-    image: "/images/juice.png",
-    category: "Boissons",
-    isNew: false,
-    isOnSale: true,
-  },
-  {
-    id: 8,
-    name: "Biscuits artisanaux",
-    price: 14990,
-    oldPrice: null,
-    image: "/images/biscuit.png",
-    category: "Épicerie",
-    isNew: true,
-    isOnSale: false,
-  },
-  {
-    id: 9,
-    name: "Tomates fraîches bio",
-    price: 4990,
-    oldPrice: 6990,
-    image: "/images/tomato.png",
-    category: "Légumes",
-    isNew: false,
-    isOnSale: true,
-  },
-  {
-    id: 10,
-    name: "Assortiment de fromages",
-    price: 18990,
-    oldPrice: null,
-    image: "/images/dairy.png",
-    category: "Produits laitiers",
-    isNew: true,
-    isOnSale: false,
-  },
-  {
-    id: 11,
-    name: "Jus d'orange pressé",
-    price: 7990,
-    oldPrice: 9990,
-    image: "/images/juice.png",
-    category: "Boissons",
-    isNew: false,
-    isOnSale: true,
-  },
-  {
-    id: 12,
-    name: "Biscuits au chocolat",
-    price: 5990,
-    oldPrice: null,
-    image: "/images/biscuit.png",
-    category: "Épicerie",
-    isNew: true,
-    isOnSale: false,
-  },
-  {
-    id: 100,
-    name: "Little Star - Jus d'Orange",
-    price: 1500,
-    oldPrice: null,
-    image: "/images/product/little-star-10.jpeg",
-    category: "Boissons",
-    isNew: true,
-    isOnSale: false,
-    specialPath: "/produits/jus-little-star",
-  },
-  {
-    id: 101,
-    name: "Little Star - Jus de Mangue",
-    price: 1700,
-    oldPrice: null,
-    image: "/images/product/little-star-7.jpeg",
-    category: "Boissons",
-    isNew: true,
-    isOnSale: false,
-    specialPath: "/produits/jus-little-star",
-  },
-]
+interface Product {
+  id: number
+  name: string
+  price: number
+  description?: string
+  stock?: number
+  image_url?: string
+  user_id: number
+  created_at: string
+  updated_at: string
+  category?: string
+  is_new?: boolean
+  is_on_sale?: boolean
+  old_price?: number | null
+}
 
 export default function ProduitsPage() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/products')
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch products')
+        }
+        
+        const data = await res.json()
+        setProducts(data.data || [])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+        console.error('Error fetching products:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProducts()
+  }, [])
+
+  // Transformer les données pour ProductCard
+  const formattedProducts = products.map((product) => ({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    oldPrice: product.old_price || null,
+    image: product.image_url || "/images/placeholder.png",
+    category: product.category || "Produits",
+    isNew: product.is_new || false,
+    isOnSale: product.is_on_sale || false,
+  }))
+
+  const featuredProduct = products[0]
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-between pt-32">
+        <div className="container mx-auto px-4 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Chargement des produits...</p>
+        </div>
+      </main>
+    )
+  }
+
+  if (error) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-between pt-32">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-red-500">Erreur: {error}</p>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Réessayer
+          </Button>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between pt-32">
       <section className="py-16 w-full">
@@ -163,30 +104,31 @@ export default function ProduitsPage() {
           </div>
 
           {/* Featured Product */}
-          <div className="mb-12">
-            <Link href="/produits/jus-little-star" className="block">
-              <div className="relative rounded-lg overflow-hidden group">
-                <Image
-                  src="/images/product/little-star-1.jpeg"
-                  alt="Little Star Jus"
-                  width={1200}
-                  height={400}
-                  className="w-full h-[400px] object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex items-center">
-                  <div className="p-8 max-w-xl">
-                    <Badge className="bg-primary hover:bg-primary/90 mb-4">Nouveau Produit</Badge>
-                    <h2 className="text-3xl font-bold text-white mb-4">Little Star - Jus de Fruits</h2>
-                    <p className="text-white/90 mb-6">
-                      Découvrez notre gamme de jus Little Star, 100% naturels et riches en vitamines. Idéal pour les
-                      enfants et les adultes, ces jus délicieux sont disponibles en plusieurs saveurs.
-                    </p>
-                    <Button className="bg-white text-primary hover:bg-white/90">Découvrir</Button>
+          {featuredProduct && (
+            <div className="mb-12">
+              <Link href={`/produits/${featuredProduct.id}`} className="block">
+                <div className="relative rounded-lg overflow-hidden group">
+                  <Image
+                    src={featuredProduct.image_url || "/images/product/little-star-1.jpeg"}
+                    alt={featuredProduct.name}
+                    width={1200}
+                    height={400}
+                    className="w-full h-[400px] object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex items-center">
+                    <div className="p-8 max-w-xl">
+                      <Badge className="bg-primary hover:bg-primary/90 mb-4">Produit Vedette</Badge>
+                      <h2 className="text-3xl font-bold text-white mb-4">{featuredProduct.name}</h2>
+                      <p className="text-white/90 mb-6">
+                        {featuredProduct.description || "Découvrez ce produit de qualité, soigneusement sélectionné pour vous."}
+                      </p>
+                      <Button className="bg-white text-primary hover:bg-white/90">Découvrir</Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          </div>
+              </Link>
+            </div>
+          )}
 
           {/* Filters */}
           <div className="bg-white rounded-lg shadow-md p-4 mb-8 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -221,7 +163,7 @@ export default function ProduitsPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {products.map((product) => (
+            {formattedProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
