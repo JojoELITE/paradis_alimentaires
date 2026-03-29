@@ -12,9 +12,11 @@ import { Label } from "@/components/ui/label"
 import { FaFacebookF, FaGoogle } from "react-icons/fa6"
 import { Eye, EyeOff } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { login } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -25,7 +27,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/client/login', {
+      const res = await fetch('http://localhost:3333/api/client/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -38,14 +40,31 @@ export default function LoginPage() {
 
       const data = await res.json()
       console.log('Login response:', data)
+      
       if (res.ok && data.success) {
+        // Vérifier que l'uuid est présent
+        if (!data.user.id) {
+          console.error("L'utilisateur n'a pas d'uuid:", data.user)
+          toast({
+            title: "Erreur",
+            description: "Données utilisateur incomplètes",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Stocker le token et l'utilisateur
+        localStorage.setItem('token', data.token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        
+        // Mettre à jour le hook useAuth
+        login(data.user, data.token)
+        
         toast({
           title: "Connexion réussie",
           description: "Bienvenue sur Paradis Alimentaire!",
         })
-        // Stocker le token
-        localStorage.setItem('token', data.token)
-        localStorage.setItem('user', JSON.stringify(data.user))
+        
         router.push('/')
       } else {
         toast({

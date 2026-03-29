@@ -86,14 +86,14 @@ export default function OrdersPage() {
   // Récupérer les commandes depuis l'API
   useEffect(() => {
     const fetchOrders = async () => {
-      if (!user?.uuid) {
+      if (!user?.id) {
         setIsLoading(false)
         return
       }
 
       setIsLoading(true)
       try {
-        const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${user.uuid}`)
+        const response = await fetch(`http://localhost:3333/api/orders/${user.id}`)
         const data = await response.json()
 
         if (data.success) {
@@ -146,15 +146,15 @@ export default function OrdersPage() {
 
   // Annuler une commande
   const handleCancelOrder = async (orderId: string) => {
-    if (!user?.uuid) return
+    if (!user?.id) return
 
     try {
-      const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${orderId}/cancel`, {
+      const response = await fetch(`http://localhost:3333/api/orders/${orderId}/cancel`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ userId: user.uuid }),
+        body: JSON.stringify({ userId: user.id }),
       })
 
       const data = await response.json()
@@ -165,7 +165,7 @@ export default function OrdersPage() {
           description: "Votre commande a été annulée avec succès.",
         })
         // Recharger les commandes
-        const refreshResponse = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${user.uuid}`)
+        const refreshResponse = await fetch(`http://localhost:3333/api/orders/${user.id}`)
         const refreshData = await refreshResponse.json()
         if (refreshData.success) {
           const formattedOrders = refreshData.data.map((order: any) => ({
@@ -208,10 +208,10 @@ export default function OrdersPage() {
 
   // Télécharger la facture
   const handleDownloadInvoice = async (orderId: string) => {
-    if (!user?.uuid) return
+    if (!user?.id) return
 
     try {
-      const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${orderId}/invoice/${user.uuid}`)
+      const response = await fetch(`http://localhost:3333/api/orders/${orderId}/invoice/${user.id}`)
       const data = await response.json()
 
       if (data.success) {

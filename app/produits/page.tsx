@@ -35,13 +35,14 @@ export default function ProduitsPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/products')
+        const res = await fetch('http://localhost:3333/api/products')
         
         if (!res.ok) {
           throw new Error('Failed to fetch products')
         }
         
         const data = await res.json()
+         console.log(data )
         setProducts(data.data || [])
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred')

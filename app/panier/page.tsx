@@ -27,7 +27,7 @@ useEffect(() => {
     if (user?.id) {
       setIsLoading(true)
       try {
-        const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/cart/${user.id}`)
+        const response = await fetch(`http://localhost:3333/api/cart/${user.id}`)
         const data = await response.json()
         
         if (data.success && data.data) {
@@ -60,7 +60,7 @@ useEffect(() => {
     const syncCart = async () => {
       if (user?.id && items.length > 0) {
         try {
-          await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/cart/update", {
+          await fetch("http://localhost:3333/api/cart/update", {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",

@@ -2,10 +2,10 @@
 import { useState, useEffect } from "react"
 
 interface User {
-  uuid: string  // Changé: id -> uuid
+  id: string  // Changé: id -> uuid
   email: string
   full_name?: string  // Changé: name -> full_name pour correspondre à votre modèle
-  role?: 'superadmin' | 'admin' | 'client'
+  role?: 'marchant' | 'admin' | 'client'
 }
 
 export function useAuth() {
@@ -26,7 +26,6 @@ export function useAuth() {
         if (storedUser && storedToken) {
           const userData = JSON.parse(storedUser)
           setUser({
-            uuid: userData.uuid, // Support les deux formats
             id : userData.id,
             email: userData.email,
             full_name: userData.full_name || userData.name,
@@ -46,7 +45,7 @@ export function useAuth() {
 
   const login = (userData: User, authToken: string) => {
     setUser({
-      uuid: userData.uuid,
+      id: userData.id,
       email: userData.email,
       full_name: userData.full_name,
       role: userData.role

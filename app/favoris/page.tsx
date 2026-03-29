@@ -28,10 +28,10 @@ export default function FavoritesPage() {
   // Charger les favoris depuis l'API si l'utilisateur est connecté
   useEffect(() => {
     const fetchFavorites = async () => {
-      if (user?.uuid) {
+      if (user?.id) {
         setIsLoading(true)
         try {
-          const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/favorites?userId=${user.uuid}`)
+          const response = await fetch(`http://localhost:3333/api/favorites?userId=${user.id}`)
           const data = await response.json()
           
           console.log("🔵 Favoris depuis API:", data)
@@ -86,15 +86,15 @@ export default function FavoritesPage() {
     })
 
     // Si l'utilisateur est connecté, supprimer aussi via l'API
-    if (user?.uuid) {
+    if (user?.id) {
       try {
-        const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/favorites/remove", {
+        const response = await fetch("hhttp://localhost:3333/api/favorites/remove", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            userId: user.uuid,
+            userId: user.id,
             productId: item.id,
           }),
         })

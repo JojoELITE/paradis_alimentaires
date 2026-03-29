@@ -33,7 +33,7 @@ export default function SuiviCommandePage() {
     setIsSearching(true)
 
     try {
-      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/tracking/search", {
+      const response = await fetch("http://localhost:3333/api/tracking/search", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -150,12 +150,12 @@ export default function SuiviCommandePage() {
 
     try {
       // Récupérer l'ID de la commande via le numéro
-      const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${orderDetails.number}`)
+      const response = await fetch(`http://localhost:3333/api/orders/${orderDetails.number}`)
       const data = await response.json()
 
       if (data.success && data.data.id) {
         // Télécharger la facture
-        const invoiceResponse = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${data.data.id}/invoice`)
+        const invoiceResponse = await fetch(`http://localhost:3333/api/orders/${data.data.id}/invoice`)
         const invoiceData = await invoiceResponse.json()
 
         if (invoiceData.success) {

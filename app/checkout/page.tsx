@@ -57,9 +57,11 @@ function MobileInputs() {
   return (
     <div className="mt-6 space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
       <div>
-        <Label htmlFor="mobileNumber">Numéro de téléphone</Label>
+        <Label htmlFor="mobileNumber">Numéro de téléphone Mobile Money</Label>
         <Input id="mobileNumber" placeholder="Ex: 07X XXX XXX" className="mt-1" />
-        <p className="text-xs text-muted-foreground mt-1">Vous recevrez une demande de paiement sur votre téléphone</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Vous recevrez une demande de paiement sur votre téléphone
+        </p>
       </div>
       <div>
         <Label htmlFor="mobileProvider">Opérateur</Label>
@@ -82,15 +84,15 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [orderNumber, setOrderNumber] = useState("")
-  
+
   // Informations de livraison
   const [shippingInfo, setShippingInfo] = useState({
     fullName: "",
     email: "",
-    phone: "",
+    phone: "",       // utilisé comme customerAccountNumber pour le KYC
     address: "",
     city: "",
-    notes: ""
+    notes: "",
   })
 
   const selectedDelivery = deliveryMethods.find((d) => d.id === deliveryMethod) || deliveryMethods[0]
@@ -98,101 +100,77 @@ export default function CheckoutPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setShippingInfo(prev => ({ ...prev, [name]: value }))
+    setShippingInfo((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Validation
+
+    // --- Validation basique ---
     if (!shippingInfo.fullName.trim()) {
-      toast({
-        title: "Champ requis",
-        description: "Veuillez saisir votre nom complet",
-        variant: "destructive",
-      })
+      toast({ title: "Champ requis", description: "Veuillez saisir votre nom complet", variant: "destructive" })
       return
     }
-    
     if (!shippingInfo.email.trim()) {
-      toast({
-        title: "Champ requis",
-        description: "Veuillez saisir votre email",
-        variant: "destructive",
-      })
+      toast({ title: "Champ requis", description: "Veuillez saisir votre email", variant: "destructive" })
       return
     }
-    
     if (!shippingInfo.phone.trim()) {
-      toast({
-        title: "Champ requis",
-        description: "Veuillez saisir votre numéro de téléphone",
-        variant: "destructive",
-      })
+      toast({ title: "Champ requis", description: "Veuillez saisir votre numéro de téléphone", variant: "destructive" })
       return
     }
-    
     if (!shippingInfo.address.trim()) {
-      toast({
-        title: "Champ requis",
-        description: "Veuillez saisir votre adresse de livraison",
-        variant: "destructive",
-      })
+      toast({ title: "Champ requis", description: "Veuillez saisir votre adresse de livraison", variant: "destructive" })
       return
     }
 
     setIsSubmitting(true)
 
-    // Validation pour Mobile Money
-    if (paymentMethod === "mobile") {
-      const phone = shippingInfo.phone.trim()
-      if (phone.length < 9 || phone.length > 10) {
-        toast({
-          title: "Numéro invalide",
-          description: "Veuillez saisir un numéro de téléphone valide",
-          variant: "destructive",
-        })
-        setIsSubmitting(false)
-        return
-      }
-    }
-
     try {
-      // Récupérer l'utilisateur du localStorage
-      let userId = null
+      // --- Récupération de l'userId depuis le localStorage ---
+      let userId: string | null = null
       try {
-        const storedUser = localStorage.getItem('user')
+        const storedUser = localStorage.getItem("user")
         if (storedUser) {
           const userData = JSON.parse(storedUser)
-          userId = userData.uuid
+          userId = userData.id
         }
       } catch (e) {
-        console.error('Erreur parsing user:', e)
+        console.error("Erreur parsing user:", e)
       }
 
-      // Si pas d'utilisateur, on génère un ID temporaire
-      if (!userId) {
-        userId = `guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      }
-
-      // Appel API pour créer la commande
-      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/orders", {
+      // Génère un ID temporaire pour les invités
+     
+      // --- Appel API ---
+      // FIX 1 : "hhttp://" corrigé en "http://"
+      // FIX 2 : customerAccountNumber envoyé (requis par le backend pour le KYC)
+      // FIX 3 : customerName et customerEmail conservés en bonus (ignorés côté backend mais utiles si tu l'adaptes)
+      const response = await fetch("http://localhost:3333/api/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          // Identification utilisateur
           userId: userId,
+
+          // ✅ FIX : champ attendu par le backend pour le KYC
+          customerAccountNumber: shippingInfo.phone,
+
+          // Adresses
           shippingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
           billingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
-          paymentMethod: paymentMethod === "card" ? "Carte bancaire" : 
-                        paymentMethod === "mobile" ? "Mobile Money" : "Paiement à la livraison",
-          customerPhone: shippingInfo.phone,
+
+          // Livraison
           deliveryMethod: deliveryMethod,
           deliveryPrice: selectedDelivery.price,
+
+          // Notes
           notes: shippingInfo.notes || null,
+
+          // Infos supplémentaires (pour log / extension future)
           customerName: shippingInfo.fullName,
-          customerEmail: shippingInfo.email
+          customerEmail: shippingInfo.email,
         }),
       })
 
@@ -202,7 +180,7 @@ export default function CheckoutPage() {
         setOrderNumber(data.data.orderNumber)
         setIsComplete(true)
         clearCart()
-        
+
         toast({
           title: "Commande confirmée !",
           description: `Votre commande #${data.data.orderNumber} a été créée avec succès.`,
@@ -267,7 +245,10 @@ export default function CheckoutPage() {
   return (
     <main className="flex min-h-screen flex-col pt-32 pb-16 bg-gradient-to-br from-gray-50 via-white to-gray-50">
       <div className="container mx-auto px-4">
-        <Link href="/panier" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-8 transition-colors">
+        <Link
+          href="/panier"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-8 transition-colors"
+        >
           <ChevronLeft className="h-4 w-4 mr-1" />
           Retour au panier
         </Link>
@@ -320,21 +301,26 @@ export default function CheckoutPage() {
                       />
                     </div>
                   </div>
+
                   <div>
                     <Label htmlFor="phone" className="flex items-center gap-1">
                       <Phone className="h-4 w-4" />
-                      Téléphone *
+                      Téléphone / Numéro Mobile Money *
                     </Label>
                     <Input
                       id="phone"
                       name="phone"
                       value={shippingInfo.phone}
                       onChange={handleInputChange}
-                      placeholder="+225 01 23 45 67 89"
+                      placeholder="+225 07 XX XX XX XX"
                       className="mt-1"
                       required
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Ce numéro sera utilisé pour la livraison et le paiement Mobile Money
+                    </p>
                   </div>
+
                   <div>
                     <Label htmlFor="address">Adresse de livraison *</Label>
                     <Input
@@ -347,6 +333,7 @@ export default function CheckoutPage() {
                       required
                     />
                   </div>
+
                   <div>
                     <Label htmlFor="city">Ville *</Label>
                     <Input
@@ -359,6 +346,7 @@ export default function CheckoutPage() {
                       required
                     />
                   </div>
+
                   <div>
                     <Label htmlFor="notes" className="flex items-center gap-1">
                       <MessageCircle className="h-4 w-4" />
@@ -470,7 +458,7 @@ export default function CheckoutPage() {
             </form>
           </div>
 
-          {/* Order Summary */}
+          {/* Récapitulatif */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-md overflow-hidden sticky top-24">
               <div className="p-6 border-b border-gray-200">
@@ -484,7 +472,13 @@ export default function CheckoutPage() {
                   {items.map((item) => (
                     <div key={item.id} className="flex gap-3">
                       <div className="h-12 w-12 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
-                        <Image src={item.image || "/placeholder.svg"} alt={item.name} width={48} height={48} className="object-cover" />
+                        <Image
+                          src={item.image || "/placeholder.svg"}
+                          alt={item.name}
+                          width={48}
+                          height={48}
+                          className="object-cover"
+                        />
                       </div>
                       <div className="flex-1">
                         <p className="font-medium text-sm">{item.name}</p>
@@ -516,7 +510,9 @@ export default function CheckoutPage() {
 
                 <div className="bg-primary/5 rounded-lg p-3 text-center text-sm">
                   <p className="text-primary font-medium">Livraison sécurisée</p>
-                  <p className="text-xs text-muted-foreground mt-1">Votre commande sera livrée dans les meilleurs délais</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Votre commande sera livrée dans les meilleurs délais
+                  </p>
                 </div>
               </div>
             </div>

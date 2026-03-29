@@ -10,7 +10,9 @@ import { ShoppingCart, Heart, Filter } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useCart } from "@/hooks/use-cart"
 import { useFavorites } from "@/hooks/use-favorites"
+import { useAuth } from "@/hooks/use-auth"
 import { toast } from "@/components/ui/use-toast"
+import { cn } from "@/lib/utils"
 
 interface Category {
   id: string
@@ -46,16 +48,18 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [loadingProductId, setLoadingProductId] = useState<number | null>(null)
+  const [loadingFavoriteId, setLoadingFavoriteId] = useState<number | null>(null)
   const { addItem } = useCart()
   const { addItem: addToFavorites, removeItem: removeFromFavorites, isFavorite } = useFavorites()
+  const { user } = useAuth()
 
   useEffect(() => {
     const fetchCategoryAndProducts = async () => {
       try {
         setLoading(true)
         
-        // Récupérer les détails de la catégorie
-        const categoryRes = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${slug}`)
+        const categoryRes = await fetch(`http://localhost:3333/api/categories/${slug}`)
         
         if (!categoryRes.ok) {
           if (categoryRes.status === 404) {
@@ -83,41 +87,138 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
     fetchCategoryAndProducts()
   }, [slug])
 
-  const handleAddToCart = (product: Product) => {
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image_url || "/images/placeholder.png",
-      quantity: 1,
-      category: product.category?.name || "Produits",
-    })
+  const handleAddToCart = async (product: Product) => {
+    setLoadingProductId(product.id)
+    
+    const userId = user?.uuid || null
 
-    toast({
-      title: "Produit ajouté au panier",
-      description: `${product.name} a été ajouté à votre panier.`,
-    })
-  }
-
-  const handleToggleFavorite = (product: Product) => {
-    if (isFavorite(product.id)) {
-      removeFromFavorites(product.id)
-      toast({
-        title: "Produit retiré des favoris",
-        description: `${product.name} a été retiré de vos favoris.`,
+    try {
+      const response = await fetch("http://localhost:3333/api/cart/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userId,
+          productId: product.id,
+          quantity: 1,
+        }),
       })
-    } else {
-      addToFavorites({
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Impossible d'ajouter au panier")
+      }
+
+      // Ajouter au panier local
+      addItem({
         id: product.id,
         name: product.name,
         price: product.price,
         image: product.image_url || "/images/placeholder.png",
+        quantity: 1,
         category: product.category?.name || "Produits",
       })
+
       toast({
-        title: "Produit ajouté aux favoris",
-        description: `${product.name} a été ajouté à vos favoris.`,
+        title: "Produit ajouté au panier",
+        description: `${product.name} a été ajouté à votre panier.`,
       })
+    } catch (error) {
+      console.error("Erreur panier:", error)
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : `${product.name} n'a pas pu être ajouté au panier.`,
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingProductId(null)
+    }
+  }
+
+  const handleToggleFavorite = async (product: Product) => {
+    setLoadingFavoriteId(product.id)
+    
+    const userId = user?.uuid || null
+    const isFav = isFavorite(product.id)
+
+    // Si l'utilisateur n'est pas connecté, utiliser le localStorage
+    if (!userId) {
+      if (isFav) {
+        removeFromFavorites(product.id)
+        toast({
+          title: "Produit retiré des favoris",
+          description: `${product.name} a été retiré de vos favoris.`,
+        })
+      } else {
+        addToFavorites({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image_url || "/images/placeholder.png",
+          category: product.category?.name || "Produits",
+        })
+        toast({
+          title: "Produit ajouté aux favoris",
+          description: `${product.name} a été ajouté à vos favoris.`,
+        })
+      }
+      setLoadingFavoriteId(null)
+      return
+    }
+
+    // Si l'utilisateur est connecté, utiliser l'API
+    try {
+      const url = isFav 
+        ? "http://localhost:3333/api/favorites/remove"
+        : "http://localhost:3333/api/favorites/add"
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userId,
+          productId: product.id,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || `Erreur ${response.status}`)
+      }
+
+      if (isFav) {
+        removeFromFavorites(product.id)
+        toast({
+          title: "Produit retiré des favoris",
+          description: `${product.name} a été retiré de vos favoris.`,
+        })
+      } else {
+        addToFavorites({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image_url || "/images/placeholder.png",
+          category: product.category?.name || "Produits",
+        })
+        toast({
+          title: "Produit ajouté aux favoris",
+          description: `${product.name} a été ajouté à vos favoris.`,
+        })
+      }
+    } catch (error) {
+      console.error("Erreur favoris:", error)
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Une erreur est survenue. Veuillez réessayer.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingFavoriteId(null)
     }
   }
 
@@ -236,8 +337,15 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
                           e.preventDefault()
                           handleToggleFavorite(product)
                         }}
+                        disabled={loadingFavoriteId === product.id}
                       >
-                        <Heart className={`h-5 w-5 ${isFavorite(product.id) ? "fill-primary text-primary" : ""}`} />
+                        <Heart 
+                          className={cn(
+                            "h-5 w-5",
+                            isFavorite(product.id) ? "fill-primary text-primary" : "",
+                            loadingFavoriteId === product.id && "animate-pulse"
+                          )} 
+                        />
                       </Button>
                     </div>
                   </Link>
@@ -264,9 +372,10 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
                   <Button 
                     className="w-full gap-2 bg-primary hover:bg-primary/90"
                     onClick={() => handleAddToCart(product)}
+                    disabled={loadingProductId === product.id}
                   >
-                    <ShoppingCart className="h-4 w-4" />
-                    Ajouter au panier
+                    <ShoppingCart className={cn("h-4 w-4", loadingProductId === product.id && "animate-pulse")} />
+                    {loadingProductId === product.id ? "Ajout en cours..." : "Ajouter au panier"}
                   </Button>
                 </CardFooter>
               </Card>

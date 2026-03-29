@@ -13,7 +13,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { FaFacebookF, FaGoogle } from "react-icons/fa6"
 import { Eye, EyeOff, Store, User } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -26,12 +25,14 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [acceptTerms, setAcceptTerms] = useState(false)
-  const [userType, setUserType] = useState<"client" | "marchand">("client")
+  const [userType, setUserType] = useState<"client" | "marchant">("client")
   const [storeName, setStoreName] = useState("")
-  const [storeDescription, setStoreDescription] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    console.log("=== DÉBUT INSCRIPTION ===")
+    console.log("Type d'utilisateur:", userType)
     
     // Validation
     if (password !== confirmPassword) {
@@ -61,7 +62,7 @@ export default function RegisterPage() {
       return
     }
 
-    if (userType === "marchand" && !storeName) {
+    if (userType === "marchant" && !storeName) {
       toast({
         title: "Erreur",
         description: "Veuillez indiquer le nom de votre boutique",
@@ -75,7 +76,16 @@ export default function RegisterPage() {
     try {
       const fullName = `${firstName} ${lastName}`.trim()
       
-      const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/client/register', {
+      // Pour un marchand, envoyer le rôle "marchant" (en anglais)
+      const role = userType === "marchant" ? "marchant" : "client"
+      
+      console.log("Envoi au serveur:", {
+        full_name: fullName,
+        email,
+        role,
+      })
+      
+      const res = await fetch('http://localhost:3333/api/client/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -84,29 +94,31 @@ export default function RegisterPage() {
           full_name: fullName,
           email,
           password,
-          role: userType === "marchand" ? "marchand" : "client",
-          store_name: userType === "marchand" ? storeName : null,
-          store_description: userType === "marchand" ? storeDescription : null,
+          role: role,
         }),
       })
 
       const data = await res.json()
 
-      console.log(data)
+      console.log("Réponse du serveur:", data)
+      
       if (res.ok && data.success) {
         toast({
           title: "Inscription réussie",
-          description: userType === "marchand" 
+          description: userType === "marchant" 
             ? "Votre boutique a été créée avec succès! Vous pouvez maintenant vous connecter."
             : "Votre compte a été créé avec succès! Vous pouvez maintenant vous connecter.",
         })
         
-        // Redirection vers la page de connexion
-        router.push('/connexion')
+        setTimeout(() => {
+          router.push('/connexion')
+        }, 1500)
       } else {
         let errorMessage = data.message || "Une erreur est survenue lors de l'inscription"
         
-        if (data.errors && Array.isArray(data.errors)) {
+        if (data.errors && typeof data.errors === 'string') {
+          errorMessage = data.errors
+        } else if (data.errors && Array.isArray(data.errors)) {
           errorMessage = data.errors.map((err: any) => err.message).join(', ')
         }
         
@@ -146,32 +158,43 @@ export default function RegisterPage() {
             {/* Type de compte */}
             <div>
               <Label className="mb-2 block">Type de compte</Label>
-              <RadioGroup
-                value={userType}
-                onValueChange={(value) => setUserType(value as "client" | "marchand")}
-                className="flex flex-col space-y-2"
-              >
-                <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-gray-50 transition-colors">
-                  <RadioGroupItem value="client" id="client" />
-                  <Label htmlFor="client" className="flex items-center cursor-pointer flex-1">
-                    <User className="h-5 w-5 mr-2 text-primary" />
-                    <div>
-                      <span className="font-medium">Client</span>
-                      <p className="text-xs text-gray-500">Acheter des produits sur la plateforme</p>
-                    </div>
-                  </Label>
+              <div className="space-y-2">
+                <div 
+                  className={`flex items-center space-x-2 border rounded-lg p-3 cursor-pointer transition-colors ${
+                    userType === "client" ? "border-primary bg-primary/5" : "border-gray-200 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setUserType("client")}
+                >
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    userType === "client" ? "border-primary" : "border-gray-400"
+                  }`}>
+                    {userType === "client" && <div className="w-2 h-2 rounded-full bg-primary" />}
+                  </div>
+                  <User className="h-5 w-5 text-primary" />
+                  <div className="flex-1">
+                    <span className="font-medium">Client</span>
+                    <p className="text-xs text-gray-500">Acheter des produits sur la plateforme</p>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-gray-50 transition-colors">
-                  <RadioGroupItem value="marchand" id="marchand" />
-                  <Label htmlFor="marchand" className="flex items-center cursor-pointer flex-1">
-                    <Store className="h-5 w-5 mr-2 text-primary" />
-                    <div>
-                      <span className="font-medium">Marchand</span>
-                      <p className="text-xs text-gray-500">Vendre vos produits sur la plateforme</p>
-                    </div>
-                  </Label>
+                
+                <div 
+                  className={`flex items-center space-x-2 border rounded-lg p-3 cursor-pointer transition-colors ${
+                    userType === "marchant" ? "border-primary bg-primary/5" : "border-gray-200 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setUserType("marchant")}
+                >
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    userType === "marchant" ? "border-primary" : "border-gray-400"
+                  }`}>
+                    {userType === "marchant" && <div className="w-2 h-2 rounded-full bg-primary" />}
+                  </div>
+                  <Store className="h-5 w-5 text-primary" />
+                  <div className="flex-1">
+                    <span className="font-medium">Marchand</span>
+                    <p className="text-xs text-gray-500">Vendre vos produits sur la plateforme</p>
+                  </div>
                 </div>
-              </RadioGroup>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -255,43 +278,30 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Champs supplémentaires pour les marchands */}
-            {userType === "marchand" && (
-              <>
-                <div>
-                  <Label htmlFor="storeName">Nom de la boutique</Label>
-                  <Input
-                    id="storeName"
-                    value={storeName}
-                    onChange={(e) => setStoreName(e.target.value)}
-                    placeholder="Ma Super Boutique"
-                    required
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="storeDescription">Description de la boutique (optionnel)</Label>
-                  <textarea
-                    id="storeDescription"
-                    value={storeDescription}
-                    onChange={(e) => setStoreDescription(e.target.value)}
-                    placeholder="Décrivez votre boutique..."
-                    rows={3}
-                    className="mt-1 w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                </div>
-              </>
+            {/* Champs pour les marchands */}
+            {userType === "marchant" && (
+              <div>
+                <Label htmlFor="storeName">Nom de la boutique</Label>
+                <Input
+                  id="storeName"
+                  value={storeName}
+                  onChange={(e) => setStoreName(e.target.value)}
+                  placeholder="Ma Super Boutique"
+                  required
+                  className="mt-1"
+                />
+              </div>
             )}
 
             <div className="flex items-start">
-              <Checkbox 
-                id="terms" 
-                className="mt-1" 
+              <input
+                type="checkbox"
+                id="terms"
+                className="mt-1 mr-2"
                 checked={acceptTerms}
-                onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
-                required 
+                onChange={(e) => setAcceptTerms(e.target.checked)}
               />
-              <Label htmlFor="terms" className="ml-2 text-sm cursor-pointer">
+              <Label htmlFor="terms" className="text-sm cursor-pointer">
                 J'accepte les{" "}
                 <Link href="/conditions-generales" className="text-primary hover:underline">
                   conditions générales
@@ -304,7 +314,7 @@ export default function RegisterPage() {
             </div>
 
             <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
-              {isLoading ? "Création en cours..." : userType === "marchand" ? "Créer ma boutique" : "Créer un compte"}
+              {isLoading ? "Création en cours..." : userType === "marchant" ? "Créer ma boutique" : "Créer un compte"}
             </Button>
           </form>
 
