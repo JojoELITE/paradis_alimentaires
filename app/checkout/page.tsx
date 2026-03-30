@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ChevronLeft, CreditCard, Truck, Check, MapPin, Phone, Mail, User, MessageCircle, Loader2, QrCode, Globe, Building2, Smartphone, Shield, Clock, Package, Award } from "lucide-react"
+import { ChevronLeft, CreditCard, Truck, Check, MapPin, Phone, Mail, User, MessageCircle, Loader2, QrCode, Globe, Building2, Smartphone, Shield, Clock, Package, Award, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -45,7 +45,6 @@ const paymentMethods = [
   { id: "card", name: "Carte bancaire", description: "Visa, Mastercard, etc.", icon: CreditCard },
   { id: "mobile", name: "Mobile Money", description: "Orange Money, MTN Mobile Money, etc.", icon: Smartphone },
   { id: "qr", name: "QR Code", description: "Payez par QR code", icon: QrCode },
-  { id: "cash", name: "Paiement à la livraison", description: "Payez en espèces à la réception", icon: Package },
 ]
 
 // --- Modes de livraison ---
@@ -54,7 +53,7 @@ const deliveryMethods = [
   { id: "express", name: "Express", price: 5000, description: "Livraison en 1-2 jours ouvrables", icon: Truck, delay: "1-2 jours" },
 ]
 
-// --- Sous-composants ---
+// --- Composant CardInputs ---
 function CardInputs({ countries }: { countries: Country[] }) {
   const [selectedCountry, setSelectedCountry] = useState<string>("")
   const [operators, setOperators] = useState<Operator[]>([])
@@ -94,7 +93,6 @@ function CardInputs({ countries }: { countries: Country[] }) {
 
   return (
     <div className="mt-6 space-y-5 animate-in slide-in-from-top-2 duration-300">
-      {/* Sélection du pays */}
       <div className="space-y-2">
         <Label className="text-sm font-semibold flex items-center gap-2">
           <Globe className="h-4 w-4 text-primary" />
@@ -123,7 +121,6 @@ function CardInputs({ countries }: { countries: Country[] }) {
         </Select>
       </div>
 
-      {/* Sélection de l'opérateur */}
       {selectedCountry && (
         <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
           <Label className="text-sm font-semibold flex items-center gap-2">
@@ -161,16 +158,10 @@ function CardInputs({ countries }: { countries: Country[] }) {
         </div>
       )}
 
-      {/* Informations de la carte */}
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="cardNumber">Numéro de carte</Label>
-          <Input 
-            id="cardNumber" 
-            placeholder="1234 5678 9012 3456" 
-            className="h-11 bg-white border-gray-200 focus:border-primary"
-            maxLength={19}
-          />
+          <Input id="cardNumber" placeholder="1234 5678 9012 3456" className="h-11 bg-white border-gray-200 focus:border-primary" maxLength={19} />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -190,19 +181,17 @@ function CardInputs({ countries }: { countries: Country[] }) {
         </div>
       </div>
 
-      {/* Badge de sécurité */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-100">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-blue-600" />
-          <p className="text-xs text-blue-800">
-            Transactions sécurisées avec chiffrement SSL
-          </p>
+          <p className="text-xs text-blue-800">Transactions sécurisées</p>
         </div>
       </div>
     </div>
   )
 }
 
+// --- Composant MobileInputs ---
 function MobileInputs() {
   const [countries, setCountries] = useState<Country[]>([])
   const [selectedCountry, setSelectedCountry] = useState<string>("")
@@ -268,7 +257,6 @@ function MobileInputs() {
 
   return (
     <div className="mt-6 space-y-5 animate-in slide-in-from-top-2 duration-300">
-      {/* Sélection du pays */}
       <div className="space-y-2">
         <Label className="text-sm font-semibold flex items-center gap-2">
           <Globe className="h-4 w-4 text-primary" />
@@ -304,7 +292,6 @@ function MobileInputs() {
         )}
       </div>
 
-      {/* Sélection de l'opérateur */}
       {selectedCountry && (
         <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
           <Label className="text-sm font-semibold flex items-center gap-2">
@@ -342,21 +329,15 @@ function MobileInputs() {
         </div>
       )}
 
-      {/* Numéro de téléphone */}
       <div className="space-y-2">
         <Label htmlFor="mobileNumber">Numéro de téléphone Mobile Money</Label>
-        <Input 
-          id="mobileNumber" 
-          placeholder="Ex: 07X XXX XXX" 
-          className="h-11 bg-white"
-        />
+        <Input id="mobileNumber" placeholder="Ex: 07X XXX XXX" className="h-11 bg-white" />
         <p className="text-xs text-muted-foreground flex items-center gap-1">
           <Phone className="h-3 w-3" />
           Vous recevrez une demande de paiement sur votre téléphone
         </p>
       </div>
 
-      {/* Message d'information */}
       {selectedOperator && (
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 border border-green-100 animate-in fade-in duration-300">
           <div className="flex items-start gap-2">
@@ -372,6 +353,7 @@ function MobileInputs() {
   )
 }
 
+// --- Composant QRCodeModal ---
 function QRCodeModal({ isOpen, onClose, qrCodeUrl, amount, orderNumber }: { 
   isOpen: boolean; 
   onClose: () => void; 
@@ -470,6 +452,139 @@ function QRCodeModal({ isOpen, onClose, qrCodeUrl, amount, orderNumber }: {
   )
 }
 
+// --- Composant PaymentStatusModal ---
+function PaymentStatusModal({ isOpen, onClose, status, message, transactionId, onSuccess, onRetry }: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  status: 'pending' | 'success' | 'failed';
+  message: string;
+  transactionId: string | null;
+  onSuccess: () => void;
+  onRetry?: () => void;
+}) {
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [checkCount, setCheckCount] = useState(0)
+
+  useEffect(() => {
+    if (!isOpen || status !== 'pending') {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      return
+    }
+
+    const checkPayment = async () => {
+      if (!transactionId) return
+      
+      try {
+        const operatorCode = "airtel"
+        const response = await fetch(
+          `http://localhost:3001/api/mypvit/transaction/status?transactionId=${transactionId}&accountOperationCode=${operatorCode}&transactionOperation=PAYMENT`
+        )
+        const data = await response.json()
+        
+        if (data.success && data.data.is_success) {
+          if (intervalRef.current) clearInterval(intervalRef.current)
+          intervalRef.current = null
+          onSuccess()
+          onClose()
+        } else if (checkCount >= 12) {
+          if (intervalRef.current) clearInterval(intervalRef.current)
+          intervalRef.current = null
+          setCheckCount(0)
+        } else {
+          setCheckCount(prev => prev + 1)
+        }
+      } catch (error) {
+        console.error('Erreur vérification:', error)
+      }
+    }
+
+    intervalRef.current = setInterval(checkPayment, 5000)
+    
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [isOpen, status, transactionId, checkCount, onSuccess, onClose])
+
+  if (status === 'success') {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-2xl">Paiement confirmé !</DialogTitle>
+          </DialogHeader>
+          <div className="py-8 text-center">
+            <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4 animate-bounce">
+              <Check className="h-10 w-10 text-green-600" />
+            </div>
+            <p className="text-muted-foreground mb-2">{message}</p>
+          </div>
+          <Button onClick={onClose} className="w-full">Continuer</Button>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  if (status === 'failed') {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-2xl text-red-600">Paiement échoué</DialogTitle>
+          </DialogHeader>
+          <div className="py-8 text-center">
+            <div className="h-20 w-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <X className="h-10 w-10 text-red-600" />
+            </div>
+            <p className="text-muted-foreground mb-2">{message}</p>
+            <div className="flex gap-3 mt-6">
+              <Button onClick={onClose} variant="outline" className="flex-1">Fermer</Button>
+              {onRetry && (
+                <Button onClick={() => { onRetry(); onClose(); }} className="flex-1">Réessayer</Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-center text-2xl">Paiement en cours</DialogTitle>
+          <DialogDescription className="text-center">
+            Veuillez patienter pendant le traitement de votre paiement
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-8 text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">{message}</p>
+          <p className="text-xs text-muted-foreground mt-2">Vérification automatique...</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-4"
+            onClick={() => {
+              if (intervalRef.current) clearInterval(intervalRef.current)
+              intervalRef.current = null
+              onClose()
+            }}
+          >
+            Annuler
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // --- Composant principal ---
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart()
@@ -479,10 +594,17 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [orderNumber, setOrderNumber] = useState("")
+  const [orderId, setOrderId] = useState("")
   const [showQRModal, setShowQRModal] = useState(false)
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
   const [countries, setCountries] = useState<Country[]>([])
   const [isLoadingCountries, setIsLoadingCountries] = useState(true)
+  const [paymentStatus, setPaymentStatus] = useState<{
+    show: boolean;
+    status: 'pending' | 'success' | 'failed';
+    message: string;
+    transactionId: string | null;
+  }>({ show: false, status: 'pending', message: '', transactionId: null })
 
   const [shippingInfo, setShippingInfo] = useState({
     fullName: "",
@@ -525,17 +647,77 @@ export default function CheckoutPage() {
     setShippingInfo((prev) => ({ ...prev, [name]: value }))
   }
 
-  const generateQRCode = async (orderId: string, amount: number) => {
+  const createOrder = async () => {
+    let userId: string | null = null
+    try {
+      const storedUser = localStorage.getItem("user")
+      if (storedUser) {
+        const userData = JSON.parse(storedUser)
+        userId = userData.id
+      }
+    } catch (e) {
+      console.error("Erreur parsing user:", e)
+    }
+
+    const response = await fetch("http://127.0.0.1:3333/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: userId,
+        customerAccountNumber: shippingInfo.phone,
+        shippingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
+        billingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
+        deliveryMethod: deliveryMethod,
+        deliveryPrice: selectedDelivery.price,
+        notes: shippingInfo.notes || null,
+        customerName: shippingInfo.fullName,
+        customerEmail: shippingInfo.email,
+        status: "pending_payment"
+      }),
+    })
+
+    return await response.json()
+  }
+
+  const initierPaiement = async (orderData: any) => {
     try {
       const apiKeyPublic = "pk_1773325888803_dt8diavuh3h"
       const apiKeySecret = "sk_1773325888803_qt015a3cr5"
-      const qrCodeUrl = `http://localhost:3001/api/mypvit/qr-code/direct/generate?amount=${amount}&payment_api_key_public=${apiKeyPublic}&payment_api_key_secret=${apiKeySecret}`
-      setQrCodeUrl(qrCodeUrl)
-      setShowQRModal(true)
-      return qrCodeUrl
+      
+      const response = await fetch("http://localhost:3001/api/mypvit/payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: total,
+          customer_account_number: shippingInfo.phone,
+          operator_code: "airtel",
+          payment_api_key_public: apiKeyPublic,
+          payment_api_key_secret: apiKeySecret,
+          order_id: orderData.id
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setPaymentStatus({
+          show: true,
+          status: 'pending',
+          message: 'Paiement en cours de traitement...',
+          transactionId: data.data.reference_id
+        })
+        return true
+      } else {
+        throw new Error(data.message || 'Erreur paiement')
+      }
     } catch (error) {
-      console.error("Erreur génération QR code:", error)
-      throw error
+      console.error("Erreur paiement:", error)
+      toast({
+        title: "Erreur de paiement",
+        description: error instanceof Error ? error.message : "Impossible d'initier le paiement",
+        variant: "destructive",
+      })
+      return false
     }
   }
 
@@ -562,53 +744,36 @@ export default function CheckoutPage() {
     setIsSubmitting(true)
 
     try {
-      let userId: string | null = null
-      try {
-        const storedUser = localStorage.getItem("user")
-        if (storedUser) {
-          const userData = JSON.parse(storedUser)
-          userId = userData.id
-        }
-      } catch (e) {
-        console.error("Erreur parsing user:", e)
-      }
+      // Créer la commande
+      const orderData = await createOrder()
 
-      const response = await fetch("http://127.0.0.1:3333/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userId,
-          customerAccountNumber: shippingInfo.phone,
-          shippingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
-          billingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
-          deliveryMethod: deliveryMethod,
-          deliveryPrice: selectedDelivery.price,
-          notes: shippingInfo.notes || null,
-          customerName: shippingInfo.fullName,
-          customerEmail: shippingInfo.email,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setOrderNumber(data.data.orderNumber)
+      if (orderData.success) {
+        setOrderNumber(orderData.data.orderNumber)
+        setOrderId(orderData.data.id)
         
         if (paymentMethod === "qr") {
-          await generateQRCode(data.data.orderNumber, total)
+          // QR Code: afficher directement le QR
+          await generateQRCode(orderData.data.orderNumber, total)
           setIsSubmitting(false)
         } else {
-          setIsComplete(true)
-          clearCart()
-          toast({
-            title: "Commande confirmée !",
-            description: `Votre commande #${data.data.orderNumber} a été créée avec succès.`,
-          })
+          // Mobile Money ou Carte: initier le paiement
+          const paymentInitiated = await initierPaiement(orderData.data)
+          setIsSubmitting(false)
+          
+          if (!paymentInitiated) {
+            // Paiement échoué, on laisse la commande en pending_payment
+            setPaymentStatus({
+              show: true,
+              status: 'failed',
+              message: 'Le paiement n\'a pas pu être initié. Veuillez réessayer.',
+              transactionId: null
+            })
+          }
         }
       } else {
         toast({
           title: "Erreur",
-          description: data.message || "Une erreur est survenue",
+          description: orderData.message || "Une erreur est survenue",
           variant: "destructive",
         })
         setIsSubmitting(false)
@@ -621,6 +786,69 @@ export default function CheckoutPage() {
         variant: "destructive",
       })
       setIsSubmitting(false)
+    }
+  }
+
+  const handlePaymentSuccess = async () => {
+    // Mettre à jour le statut de la commande
+    try {
+      await fetch(`http://127.0.0.1:3333/api/orders/${orderId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "paid" })
+      })
+    } catch (error) {
+      console.error("Erreur mise à jour statut:", error)
+    }
+    
+    setIsComplete(true)
+    clearCart()
+    toast({
+      title: "Commande confirmée !",
+      description: `Votre commande #${orderNumber} a été payée avec succès.`,
+    })
+  }
+
+  const handlePaymentRetry = async () => {
+    setIsSubmitting(true)
+    try {
+      const orderData = { id: orderId, orderNumber: orderNumber }
+      const paymentInitiated = await initierPaiement(orderData)
+      setIsSubmitting(false)
+      
+      if (!paymentInitiated) {
+        setPaymentStatus({
+          show: true,
+          status: 'failed',
+          message: 'Le paiement n\'a pas pu être initié. Veuillez réessayer.',
+          transactionId: null
+        })
+      }
+    } catch (error) {
+      setIsSubmitting(false)
+      toast({
+        title: "Erreur",
+        description: "Impossible de réessayer le paiement",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handlePaymentClose = () => {
+    setPaymentStatus({ show: false, status: 'pending', message: '', transactionId: null })
+  }
+
+  const generateQRCode = async (orderId: string, amount: number) => {
+    try {
+      const apiKeyPublic = "pk_1773325888803_dt8diavuh3h"
+      const apiKeySecret = "sk_1773325888803_qt015a3cr5"
+      const qrCodeUrl = `http://localhost:3001/api/mypvit/qr-code/direct/generate?amount=${amount}&payment_api_key_public=${apiKeyPublic}&payment_api_key_secret=${apiKeySecret}`
+      setQrCodeUrl(qrCodeUrl)
+      setShowQRModal(true)
+      return qrCodeUrl
+    } catch (error) {
+      console.error("Erreur génération QR code:", error)
+      throw error
     }
   }
 
@@ -798,7 +1026,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="p-6">
                   <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {paymentMethods.map((method) => {
                         const Icon = method.icon
                         return (
@@ -813,7 +1041,7 @@ export default function CheckoutPage() {
                             onClick={() => setPaymentMethod(method.id)}
                           >
                             <RadioGroupItem value={method.id} id={`payment-${method.id}`} />
-                            <Icon className="h-5 w-5 text-primary" />
+                            <Icon className="h-5 w-5 text-primary flex-shrink-0" />
                             <div className="flex-1">
                               <Label htmlFor={`payment-${method.id}`} className="font-semibold cursor-pointer">
                                 {method.name}
@@ -941,6 +1169,16 @@ export default function CheckoutPage() {
       </div>
 
       <QRCodeModal isOpen={showQRModal} onClose={handleQRCodeClose} qrCodeUrl={qrCodeUrl} amount={total} orderNumber={orderNumber} />
+      
+      <PaymentStatusModal 
+        isOpen={paymentStatus.show}
+        onClose={handlePaymentClose}
+        status={paymentStatus.status}
+        message={paymentStatus.message}
+        transactionId={paymentStatus.transactionId}
+        onSuccess={handlePaymentSuccess}
+        onRetry={handlePaymentRetry}
+      />
     </main>
   )
 }

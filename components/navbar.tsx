@@ -14,7 +14,6 @@ import { FaWhatsapp } from "react-icons/fa";
 import { FaFacebookF, FaInstagram} from "react-icons/fa6"
 import { useCart } from "@/hooks/use-cart"
 import { useFavorites } from "@/hooks/use-favorites"
-import CurrencySelector from "@/components/currency-selector"
 import LanguageSelector from "@/components/language-selector"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { toast } from "@/components/ui/use-toast"
@@ -192,7 +191,7 @@ export default function Navbar() {
                     {(user.role === "admin" || user.role === "superadmin" || user.role === "marchant") && (
                       <DropdownMenuItem asChild>
                         <Link href="/dashboard" className="cursor-pointer w-full">
-                          📊 Mon dashboard
+                           Mon dashboard
                         </Link>
                       </DropdownMenuItem>
                     )}
@@ -289,7 +288,6 @@ export default function Navbar() {
               <Link href="/suivi-commande" className="text-sm text-gray-800 hover:text-primary">
                 Suivre ma commande
               </Link>
-              <CurrencySelector />
               <LanguageSelector />
               <div className="flex items-center space-x-3 text-gray-800">
                 <Link href="#" className="hover:text-primary transition-colors">

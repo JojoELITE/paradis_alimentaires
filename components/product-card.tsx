@@ -30,7 +30,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart()
-  const { addItem: addToFavorites, removeItem: removeFromFavorites, isFavorite, syncFavorites } = useFavorites()
+  const { addItem: addToFavorites, removeItem: removeFromFavorites, isFavorite } = useFavorites()
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -39,7 +39,6 @@ export default function ProductCard({ product }: ProductCardProps) {
     e.stopPropagation()
 
     const userId = user?.id || null
-    alert(userId)
 
     try {
       const response = await fetch("http://127.0.0.1:3333/api/cart/add", {

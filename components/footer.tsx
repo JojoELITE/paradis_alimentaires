@@ -134,15 +134,15 @@ export default function Footer() {
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
                 <MapPin className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                <span className="text-white/80">123 Avenue des Champs-Élysées, 75008 Paris, France</span>
+                <span className="text-white/80">betsaida libreville,Gabon</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="h-5 w-5 text-primary flex-shrink-0" />
-                <span className="text-white/80">+33 1 23 45 67 89</span>
+                <span className="text-white/80">+241074699791</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-primary flex-shrink-0" />
-                <span className="text-white/80">contact@paradisalimentaire.fr</span>
+                <span className="text-white/80">contact@elieboulingui.fr</span>
               </li>
             </ul>
           </div>

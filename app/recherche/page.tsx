@@ -87,8 +87,8 @@ export default function SearchPage() {
   const handleAddToCart = async (product: Product) => {
     setLoadingProductId(product.id)
     
-    const userId = user?.uuid || null
-    alert(userId)
+    const userId = user?.id || null
+  
 
     try {
       const response = await fetch("http://127.0.0.1:3333/api/cart/add", {
@@ -138,7 +138,7 @@ export default function SearchPage() {
   const handleToggleFavorite = async (product: Product) => {
     setLoadingFavoriteId(product.id)
     
-    const userId = user?.uuid || null
+    const userId = user?.id || null
     const isFav = isFavorite(product.id)
 
     // Si l'utilisateur n'est pas connecté, utiliser le localStorage

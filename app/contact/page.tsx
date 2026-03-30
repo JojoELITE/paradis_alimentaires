@@ -76,8 +76,8 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-medium">Téléphone</h3>
-                    <p className="text-muted-foreground mt-1">+33 1 23 45 67 89</p>
-                    <p className="text-muted-foreground">+33 9 87 65 43 21</p>
+                    <p className="text-muted-foreground mt-1">+241074699791</p>
+                    <p className="text-muted-foreground">+241074699791</p>
                   </div>
                 </div>
 
@@ -87,8 +87,8 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-medium">Email</h3>
-                    <p className="text-muted-foreground mt-1">contact@paradisalimentaire.fr</p>
-                    <p className="text-muted-foreground">support@paradisalimentaire.fr</p>
+                    <p className="text-muted-foreground mt-1">contact@elieboulingui.fr</p>
+                    <p className="text-muted-foreground">support@elieboulingui.fr</p>
                   </div>
                 </div>
 
