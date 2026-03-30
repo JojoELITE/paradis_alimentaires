@@ -93,7 +93,7 @@ export default function OrdersPage() {
 
       setIsLoading(true)
       try {
-        const response = await fetch(`http://localhost:3333/api/orders/${user.id}`)
+        const response = await fetch(`http://127.0.0.1:3333/api/orders/${user.id}`)
         const data = await response.json()
 
         if (data.success) {
@@ -149,7 +149,7 @@ export default function OrdersPage() {
     if (!user?.id) return
 
     try {
-      const response = await fetch(`http://localhost:3333/api/orders/${orderId}/cancel`, {
+      const response = await fetch(`http://127.0.0.1:3333/api/orders/${orderId}/cancel`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -165,7 +165,7 @@ export default function OrdersPage() {
           description: "Votre commande a été annulée avec succès.",
         })
         // Recharger les commandes
-        const refreshResponse = await fetch(`http://localhost:3333/api/orders/${user.id}`)
+        const refreshResponse = await fetch(`http://127.0.0.1:3333/api/orders/${user.id}`)
         const refreshData = await refreshResponse.json()
         if (refreshData.success) {
           const formattedOrders = refreshData.data.map((order: any) => ({
@@ -211,7 +211,7 @@ export default function OrdersPage() {
     if (!user?.id) return
 
     try {
-      const response = await fetch(`http://localhost:3333/api/orders/${orderId}/invoice/${user.id}`)
+      const response = await fetch(`http://127.0.0.1:3333/api/orders/${orderId}/invoice/${user.id}`)
       const data = await response.json()
 
       if (data.success) {

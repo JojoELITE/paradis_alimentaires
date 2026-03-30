@@ -1,77 +1,472 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ChevronLeft, CreditCard, Truck, Check, MapPin, Phone, Mail, User, MessageCircle, Loader2 } from "lucide-react"
+import { ChevronLeft, CreditCard, Truck, Check, MapPin, Phone, Mail, User, MessageCircle, Loader2, QrCode, Globe, Building2, Smartphone, Shield, Clock, Package, Award } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useCart } from "@/hooks/use-cart"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { toast } from "@/components/ui/use-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+
+// --- Types ---
+interface Country {
+  name: string
+  iso_code: string
+  status: boolean
+}
+
+interface Operator {
+  name: string
+  code: string
+  active: boolean
+  provider: string
+  country: {
+    name: string
+    iso_code: string
+  }
+}
 
 // --- Modes de paiement ---
 const paymentMethods = [
-  { id: "card", name: "Carte bancaire", description: "Visa, Mastercard, etc." },
-  { id: "mobile", name: "Mobile Money", description: "Orange Money, MTN Mobile Money, etc." },
-  { id: "cash", name: "Paiement à la livraison", description: "Payez en espèces à la réception" },
+  { id: "card", name: "Carte bancaire", description: "Visa, Mastercard, etc.", icon: CreditCard },
+  { id: "mobile", name: "Mobile Money", description: "Orange Money, MTN Mobile Money, etc.", icon: Smartphone },
+  { id: "qr", name: "QR Code", description: "Payez par QR code", icon: QrCode },
+  { id: "cash", name: "Paiement à la livraison", description: "Payez en espèces à la réception", icon: Package },
 ]
 
 // --- Modes de livraison ---
 const deliveryMethods = [
-  { id: "standard", name: "Standard", price: 2500, description: "Livraison en 3-5 jours ouvrables" },
-  { id: "express", name: "Express", price: 5000, description: "Livraison en 1-2 jours ouvrables" },
+  { id: "standard", name: "Standard", price: 2500, description: "Livraison en 3-5 jours ouvrables", icon: Clock, delay: "3-5 jours" },
+  { id: "express", name: "Express", price: 5000, description: "Livraison en 1-2 jours ouvrables", icon: Truck, delay: "1-2 jours" },
 ]
 
 // --- Sous-composants ---
-function CardInputs() {
+function CardInputs({ countries }: { countries: Country[] }) {
+  const [selectedCountry, setSelectedCountry] = useState<string>("")
+  const [operators, setOperators] = useState<Operator[]>([])
+  const [selectedOperator, setSelectedOperator] = useState<string>("")
+  const [isLoadingOperators, setIsLoadingOperators] = useState(false)
+
+  useEffect(() => {
+    const fetchOperators = async () => {
+      if (!selectedCountry) return
+      
+      setIsLoadingOperators(true)
+      try {
+        const response = await fetch(`http://localhost:3001/api/mypvit/operators/${selectedCountry}`)
+        const data = await response.json()
+        
+        if (data.success && data.data.operators) {
+          const activeOperators = data.data.operators.filter((op: Operator) => op.active === true)
+          setOperators(activeOperators)
+          setSelectedOperator("")
+        } else {
+          setOperators([])
+        }
+      } catch (error) {
+        console.error("Erreur chargement opérateurs:", error)
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les opérateurs",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingOperators(false)
+      }
+    }
+
+    fetchOperators()
+  }, [selectedCountry])
+
   return (
-    <div className="mt-6 space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-      <div>
-        <Label htmlFor="cardNumber">Numéro de carte</Label>
-        <Input id="cardNumber" placeholder="1234 5678 9012 3456" className="mt-1" />
+    <div className="mt-6 space-y-5 animate-in slide-in-from-top-2 duration-300">
+      {/* Sélection du pays */}
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold flex items-center gap-2">
+          <Globe className="h-4 w-4 text-primary" />
+          Pays de la carte
+        </Label>
+        <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+          <SelectTrigger className="h-11 bg-white border-gray-200 hover:border-primary/50 transition-colors">
+            <SelectValue placeholder="Sélectionnez votre pays" />
+          </SelectTrigger>
+          <SelectContent className="max-h-60">
+            {countries.length > 0 ? (
+              countries.map((country) => (
+                <SelectItem key={country.iso_code} value={country.iso_code}>
+                  <div className="flex items-center justify-between w-full">
+                    <span>{country.name}</span>
+                    <span className="text-xs text-muted-foreground">{country.iso_code}</span>
+                  </div>
+                </SelectItem>
+              ))
+            ) : (
+              <SelectItem value="no-countries" disabled>
+                Aucun pays disponible
+              </SelectItem>
+            )}
+          </SelectContent>
+        </Select>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="expiryDate">Date d'expiration</Label>
-          <Input id="expiryDate" placeholder="MM/AA" className="mt-1" />
+
+      {/* Sélection de l'opérateur */}
+      {selectedCountry && (
+        <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+          <Label className="text-sm font-semibold flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-primary" />
+            Opérateur / Banque
+          </Label>
+          {isLoadingOperators ? (
+            <div className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg bg-gray-50">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span className="ml-2 text-sm text-muted-foreground">Chargement des opérateurs...</span>
+            </div>
+          ) : (
+            <Select value={selectedOperator} onValueChange={setSelectedOperator}>
+              <SelectTrigger className="h-11 bg-white border-gray-200 hover:border-primary/50 transition-colors">
+                <SelectValue placeholder="Sélectionnez votre opérateur" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {operators.length > 0 ? (
+                  operators.map((operator) => (
+                    <SelectItem key={operator.code} value={operator.code}>
+                      <div className="flex flex-col py-1">
+                        <span className="font-medium">{operator.name}</span>
+                        <span className="text-xs text-muted-foreground">{operator.provider}</span>
+                      </div>
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-operators" disabled>
+                    Aucun opérateur disponible
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          )}
         </div>
-        <div>
-          <Label htmlFor="cvv">CVV</Label>
-          <Input id="cvv" placeholder="123" className="mt-1" />
+      )}
+
+      {/* Informations de la carte */}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="cardNumber">Numéro de carte</Label>
+          <Input 
+            id="cardNumber" 
+            placeholder="1234 5678 9012 3456" 
+            className="h-11 bg-white border-gray-200 focus:border-primary"
+            maxLength={19}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="expiryDate">Date d'expiration</Label>
+            <Input id="expiryDate" placeholder="MM/AA" className="h-11 bg-white" maxLength={5} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cvv">CVV</Label>
+            <Input id="cvv" placeholder="123" className="h-11 bg-white" type="password" maxLength={4} />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="cardName">Nom sur la carte</Label>
+          <Input id="cardName" placeholder="Nom sur la carte" className="h-11 bg-white" />
         </div>
       </div>
-      <div>
-        <Label htmlFor="cardName">Nom sur la carte</Label>
-        <Input id="cardName" placeholder="Nom sur la carte" className="mt-1" />
+
+      {/* Badge de sécurité */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-100">
+        <div className="flex items-center gap-2">
+          <Shield className="h-4 w-4 text-blue-600" />
+          <p className="text-xs text-blue-800">
+            Transactions sécurisées avec chiffrement SSL
+          </p>
+        </div>
       </div>
     </div>
   )
 }
 
 function MobileInputs() {
+  const [countries, setCountries] = useState<Country[]>([])
+  const [selectedCountry, setSelectedCountry] = useState<string>("")
+  const [operators, setOperators] = useState<Operator[]>([])
+  const [selectedOperator, setSelectedOperator] = useState<string>("")
+  const [isLoadingCountries, setIsLoadingCountries] = useState(true)
+  const [isLoadingOperators, setIsLoadingOperators] = useState(false)
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch("http://localhost:3001/api/mypvit/countries")
+        const data = await response.json()
+        
+        if (data.success && data.data) {
+          setCountries(data.data.filter((country: Country) => country.status === true))
+        }
+      } catch (error) {
+        console.error("Erreur chargement pays:", error)
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger la liste des pays",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingCountries(false)
+      }
+    }
+
+    fetchCountries()
+  }, [])
+
+  useEffect(() => {
+    const fetchOperators = async () => {
+      if (!selectedCountry) return
+      
+      setIsLoadingOperators(true)
+      try {
+        const response = await fetch(`http://localhost:3001/api/mypvit/operators/${selectedCountry}`)
+        const data = await response.json()
+        
+        if (data.success && data.data.operators) {
+          const activeOperators = data.data.operators.filter((op: Operator) => op.active === true)
+          setOperators(activeOperators)
+          setSelectedOperator("")
+        } else {
+          setOperators([])
+        }
+      } catch (error) {
+        console.error("Erreur chargement opérateurs:", error)
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les opérateurs",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingOperators(false)
+      }
+    }
+
+    fetchOperators()
+  }, [selectedCountry])
+
   return (
-    <div className="mt-6 space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-      <div>
+    <div className="mt-6 space-y-5 animate-in slide-in-from-top-2 duration-300">
+      {/* Sélection du pays */}
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold flex items-center gap-2">
+          <Globe className="h-4 w-4 text-primary" />
+          Pays
+        </Label>
+        {isLoadingCountries ? (
+          <div className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg bg-gray-50">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span className="ml-2 text-sm text-muted-foreground">Chargement des pays...</span>
+          </div>
+        ) : (
+          <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+            <SelectTrigger className="h-11 bg-white border-gray-200 hover:border-primary/50 transition-colors">
+              <SelectValue placeholder="Sélectionnez votre pays" />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              {countries.length > 0 ? (
+                countries.map((country) => (
+                  <SelectItem key={country.iso_code} value={country.iso_code}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{country.name}</span>
+                      <span className="text-xs text-muted-foreground">{country.iso_code}</span>
+                    </div>
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="no-countries" disabled>
+                  Aucun pays disponible
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {/* Sélection de l'opérateur */}
+      {selectedCountry && (
+        <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+          <Label className="text-sm font-semibold flex items-center gap-2">
+            <Smartphone className="h-4 w-4 text-primary" />
+            Opérateur Mobile Money
+          </Label>
+          {isLoadingOperators ? (
+            <div className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg bg-gray-50">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span className="ml-2 text-sm text-muted-foreground">Chargement des opérateurs...</span>
+            </div>
+          ) : (
+            <Select value={selectedOperator} onValueChange={setSelectedOperator}>
+              <SelectTrigger className="h-11 bg-white border-gray-200 hover:border-primary/50 transition-colors">
+                <SelectValue placeholder="Sélectionnez votre opérateur" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {operators.length > 0 ? (
+                  operators.map((operator) => (
+                    <SelectItem key={operator.code} value={operator.code}>
+                      <div className="flex flex-col py-1">
+                        <span className="font-medium">{operator.name}</span>
+                        <span className="text-xs text-muted-foreground">{operator.provider}</span>
+                      </div>
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-operators" disabled>
+                    Aucun opérateur disponible
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      )}
+
+      {/* Numéro de téléphone */}
+      <div className="space-y-2">
         <Label htmlFor="mobileNumber">Numéro de téléphone Mobile Money</Label>
-        <Input id="mobileNumber" placeholder="Ex: 07X XXX XXX" className="mt-1" />
-        <p className="text-xs text-muted-foreground mt-1">
+        <Input 
+          id="mobileNumber" 
+          placeholder="Ex: 07X XXX XXX" 
+          className="h-11 bg-white"
+        />
+        <p className="text-xs text-muted-foreground flex items-center gap-1">
+          <Phone className="h-3 w-3" />
           Vous recevrez une demande de paiement sur votre téléphone
         </p>
       </div>
-      <div>
-        <Label htmlFor="mobileProvider">Opérateur</Label>
-        <select id="mobileProvider" className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2">
-          <option value="orange">Orange Money</option>
-          <option value="mtn">MTN Mobile Money</option>
-          <option value="moov">Moov Money</option>
-        </select>
-      </div>
+
+      {/* Message d'information */}
+      {selectedOperator && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 border border-green-100 animate-in fade-in duration-300">
+          <div className="flex items-start gap-2">
+            <Award className="h-4 w-4 text-green-600 mt-0.5" />
+            <p className="text-xs text-green-800">
+              Paiement sécurisé via {operators.find(op => op.code === selectedOperator)?.provider || "GIMAC"}.
+              Des frais de transaction peuvent s'appliquer selon votre opérateur.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+function QRCodeModal({ isOpen, onClose, qrCodeUrl, amount, orderNumber }: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  qrCodeUrl: string | null;
+  amount: number;
+  orderNumber: string | null;
+}) {
+  const [isPolling, setIsPolling] = useState(false)
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false)
+
+  const checkPaymentStatus = () => {
+    setIsPolling(true)
+    setTimeout(() => {
+      setPaymentConfirmed(true)
+      setIsPolling(false)
+    }, 5000)
+  }
+
+  if (paymentConfirmed) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-2xl">Paiement confirmé !</DialogTitle>
+          </DialogHeader>
+          <div className="py-8 text-center">
+            <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4 animate-bounce">
+              <Check className="h-10 w-10 text-green-600" />
+            </div>
+            <p className="text-muted-foreground mb-2">
+              Commande #{orderNumber} confirmée
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Vous recevrez un email de confirmation
+            </p>
+          </div>
+          <Button onClick={onClose} className="w-full">
+            Continuer
+          </Button>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-center text-2xl">Scanner le QR Code</DialogTitle>
+          <DialogDescription className="text-center">
+            Scannez ce code avec votre application Mobile Money
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col items-center py-6">
+          {qrCodeUrl ? (
+            <div className="bg-white p-4 rounded-xl shadow-lg border-2 border-primary/20">
+              <img 
+                src={qrCodeUrl} 
+                alt="QR Code de paiement" 
+                className="w-64 h-64 object-contain"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center w-64 h-64 bg-gray-100 rounded-xl">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+          )}
+          
+          <div className="mt-6 w-full space-y-3 text-center">
+            <div>
+              <p className="text-sm text-muted-foreground">Montant à payer</p>
+              <p className="text-3xl font-bold text-primary">{amount.toLocaleString()} FCFA</p>
+            </div>
+            
+            {!paymentConfirmed && (
+              <Button 
+                variant="outline" 
+                className="w-full mt-4"
+                onClick={checkPaymentStatus}
+                disabled={isPolling}
+              >
+                {isPolling ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Vérification en cours...
+                  </>
+                ) : (
+                  "J'ai déjà payé"
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -84,12 +479,15 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [orderNumber, setOrderNumber] = useState("")
+  const [showQRModal, setShowQRModal] = useState(false)
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
+  const [countries, setCountries] = useState<Country[]>([])
+  const [isLoadingCountries, setIsLoadingCountries] = useState(true)
 
-  // Informations de livraison
   const [shippingInfo, setShippingInfo] = useState({
     fullName: "",
     email: "",
-    phone: "",       // utilisé comme customerAccountNumber pour le KYC
+    phone: "",
     address: "",
     city: "",
     notes: "",
@@ -98,15 +496,52 @@ export default function CheckoutPage() {
   const selectedDelivery = deliveryMethods.find((d) => d.id === deliveryMethod) || deliveryMethods[0]
   const total = subtotal + selectedDelivery.price
 
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch("http://localhost:3001/api/mypvit/countries")
+        const data = await response.json()
+        
+        if (data.success && data.data) {
+          setCountries(data.data.filter((country: Country) => country.status === true))
+        }
+      } catch (error) {
+        console.error("Erreur chargement pays:", error)
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger la liste des pays",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingCountries(false)
+      }
+    }
+
+    fetchCountries()
+  }, [])
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setShippingInfo((prev) => ({ ...prev, [name]: value }))
   }
 
+  const generateQRCode = async (orderId: string, amount: number) => {
+    try {
+      const apiKeyPublic = "pk_1773325888803_dt8diavuh3h"
+      const apiKeySecret = "sk_1773325888803_qt015a3cr5"
+      const qrCodeUrl = `http://localhost:3001/api/mypvit/qr-code/direct/generate?amount=${amount}&payment_api_key_public=${apiKeyPublic}&payment_api_key_secret=${apiKeySecret}`
+      setQrCodeUrl(qrCodeUrl)
+      setShowQRModal(true)
+      return qrCodeUrl
+    } catch (error) {
+      console.error("Erreur génération QR code:", error)
+      throw error
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // --- Validation basique ---
     if (!shippingInfo.fullName.trim()) {
       toast({ title: "Champ requis", description: "Veuillez saisir votre nom complet", variant: "destructive" })
       return
@@ -127,7 +562,6 @@ export default function CheckoutPage() {
     setIsSubmitting(true)
 
     try {
-      // --- Récupération de l'userId depuis le localStorage ---
       let userId: string | null = null
       try {
         const storedUser = localStorage.getItem("user")
@@ -139,36 +573,17 @@ export default function CheckoutPage() {
         console.error("Erreur parsing user:", e)
       }
 
-      // Génère un ID temporaire pour les invités
-     
-      // --- Appel API ---
-      // FIX 1 : "hhttp://" corrigé en "http://"
-      // FIX 2 : customerAccountNumber envoyé (requis par le backend pour le KYC)
-      // FIX 3 : customerName et customerEmail conservés en bonus (ignorés côté backend mais utiles si tu l'adaptes)
-      const response = await fetch("http://localhost:3333/api/orders", {
+      const response = await fetch("http://127.0.0.1:3333/api/orders", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // Identification utilisateur
           userId: userId,
-
-          // ✅ FIX : champ attendu par le backend pour le KYC
           customerAccountNumber: shippingInfo.phone,
-
-          // Adresses
           shippingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
           billingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
-
-          // Livraison
           deliveryMethod: deliveryMethod,
           deliveryPrice: selectedDelivery.price,
-
-          // Notes
           notes: shippingInfo.notes || null,
-
-          // Infos supplémentaires (pour log / extension future)
           customerName: shippingInfo.fullName,
           customerEmail: shippingInfo.email,
         }),
@@ -178,17 +593,22 @@ export default function CheckoutPage() {
 
       if (data.success) {
         setOrderNumber(data.data.orderNumber)
-        setIsComplete(true)
-        clearCart()
-
-        toast({
-          title: "Commande confirmée !",
-          description: `Votre commande #${data.data.orderNumber} a été créée avec succès.`,
-        })
+        
+        if (paymentMethod === "qr") {
+          await generateQRCode(data.data.orderNumber, total)
+          setIsSubmitting(false)
+        } else {
+          setIsComplete(true)
+          clearCart()
+          toast({
+            title: "Commande confirmée !",
+            description: `Votre commande #${data.data.orderNumber} a été créée avec succès.`,
+          })
+        }
       } else {
         toast({
           title: "Erreur",
-          description: data.message || "Une erreur est survenue lors de la création de la commande",
+          description: data.message || "Une erreur est survenue",
           variant: "destructive",
         })
         setIsSubmitting(false)
@@ -197,14 +617,23 @@ export default function CheckoutPage() {
       console.error("Erreur:", error)
       toast({
         title: "Erreur",
-        description: "Impossible de contacter le serveur. Veuillez réessayer.",
+        description: "Impossible de contacter le serveur",
         variant: "destructive",
       })
       setIsSubmitting(false)
     }
   }
 
-  // --- Page commande réussie ---
+  const handleQRCodeClose = () => {
+    setShowQRModal(false)
+    setIsComplete(true)
+    clearCart()
+    toast({
+      title: "Commande confirmée !",
+      description: `Votre commande #${orderNumber} a été créée avec succès.`,
+    })
+  }
+
   if (isComplete) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center pt-32 pb-16 bg-gradient-to-br from-gray-50 via-white to-gray-50">
@@ -218,22 +647,18 @@ export default function CheckoutPage() {
             Commande confirmée !
           </h1>
           <p className="text-muted-foreground mb-8">
-            Merci pour votre commande. Vous recevrez un email de confirmation avec les détails de votre livraison.
+            Merci pour votre commande. Vous recevrez un email de confirmation.
           </p>
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <div className="text-sm text-muted-foreground mb-2">Numéro de commande</div>
-            <div className="text-xl font-bold text-primary font-mono">{orderNumber}</div>
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-100">
+            <p className="text-sm text-muted-foreground mb-2">Numéro de commande</p>
+            <p className="text-xl font-bold text-primary font-mono">{orderNumber}</p>
           </div>
           <div className="space-y-3">
             <Link href="/">
-              <Button size="lg" className="w-full bg-primary hover:bg-primary/90">
-                Retour à l'accueil
-              </Button>
+              <Button size="lg" className="w-full">Retour à l'accueil</Button>
             </Link>
             <Link href="/commandes">
-              <Button variant="outline" size="lg" className="w-full">
-                Voir mes commandes
-              </Button>
+              <Button variant="outline" size="lg" className="w-full">Voir mes commandes</Button>
             </Link>
           </div>
         </div>
@@ -241,209 +666,184 @@ export default function CheckoutPage() {
     )
   }
 
-  // --- Page checkout ---
   return (
-    <main className="flex min-h-screen flex-col pt-32 pb-16 bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      <div className="container mx-auto px-4">
-        <Link
-          href="/panier"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-8 transition-colors"
-        >
-          <ChevronLeft className="h-4 w-4 mr-1" />
+    <main className="flex min-h-screen flex-col pt-24 pb-16 bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      <div className="container mx-auto px-4 max-w-7xl">
+        <Link href="/panier" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-8 transition-colors group">
+          <ChevronLeft className="h-4 w-4 mr-1 group-hover:-translate-x-1 transition-transform" />
           Retour au panier
         </Link>
 
-        <h1 className="text-3xl md:text-4xl font-bold mb-8 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-          Finaliser la commande
-        </h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+            Finaliser la commande
+          </h1>
+          <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-primary"></div>
+              <span>1. Livraison</span>
+            </div>
+            <div className="w-8 h-px bg-gray-300"></div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+              <span>2. Paiement</span>
+            </div>
+            <div className="w-8 h-px bg-gray-300"></div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+              <span>3. Confirmation</span>
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Formulaire */}
-          <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="lg:col-span-2 space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* Informations de livraison */}
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="p-6 border-b border-gray-200 flex items-center">
-                  <MapPin className="h-5 w-5 mr-2 text-primary" />
-                  <h2 className="text-xl font-semibold">Informations de livraison</h2>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+                <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg font-semibold">Informations de livraison</h2>
+                  </div>
                 </div>
                 <div className="p-6 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="fullName" className="flex items-center gap-1">
-                        <User className="h-4 w-4" />
-                        Nom complet *
-                      </Label>
-                      <Input
-                        id="fullName"
-                        name="fullName"
-                        value={shippingInfo.fullName}
-                        onChange={handleInputChange}
-                        placeholder="Jean Dupont"
-                        className="mt-1"
-                        required
-                      />
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Nom complet</Label>
+                      <Input name="fullName" value={shippingInfo.fullName} onChange={handleInputChange} placeholder="Jean Dupont" className="h-11" required />
                     </div>
-                    <div>
-                      <Label htmlFor="email" className="flex items-center gap-1">
-                        <Mail className="h-4 w-4" />
-                        Email *
-                      </Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={shippingInfo.email}
-                        onChange={handleInputChange}
-                        placeholder="jean@example.com"
-                        className="mt-1"
-                        required
-                      />
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Email</Label>
+                      <Input name="email" type="email" value={shippingInfo.email} onChange={handleInputChange} placeholder="jean@example.com" className="h-11" required />
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="phone" className="flex items-center gap-1">
-                      <Phone className="h-4 w-4" />
-                      Téléphone / Numéro Mobile Money *
-                    </Label>
-                    <Input
-                      id="phone"
-                      name="phone"
-                      value={shippingInfo.phone}
-                      onChange={handleInputChange}
-                      placeholder="+225 07 XX XX XX XX"
-                      className="mt-1"
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Ce numéro sera utilisé pour la livraison et le paiement Mobile Money
-                    </p>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Téléphone</Label>
+                    <Input name="phone" value={shippingInfo.phone} onChange={handleInputChange} placeholder="+225 07 XX XX XX XX" className="h-11" required />
                   </div>
 
-                  <div>
-                    <Label htmlFor="address">Adresse de livraison *</Label>
-                    <Input
-                      id="address"
-                      name="address"
-                      value={shippingInfo.address}
-                      onChange={handleInputChange}
-                      placeholder="Rue des Jardins, Cocody"
-                      className="mt-1"
-                      required
-                    />
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Adresse de livraison</Label>
+                    <Input name="address" value={shippingInfo.address} onChange={handleInputChange} placeholder="Rue des Jardins, Cocody" className="h-11" required />
                   </div>
 
-                  <div>
-                    <Label htmlFor="city">Ville *</Label>
-                    <Input
-                      id="city"
-                      name="city"
-                      value={shippingInfo.city}
-                      onChange={handleInputChange}
-                      placeholder="Abidjan"
-                      className="mt-1"
-                      required
-                    />
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Ville</Label>
+                    <Input name="city" value={shippingInfo.city} onChange={handleInputChange} placeholder="Abidjan" className="h-11" required />
                   </div>
 
-                  <div>
-                    <Label htmlFor="notes" className="flex items-center gap-1">
-                      <MessageCircle className="h-4 w-4" />
-                      Notes (optionnel)
-                    </Label>
-                    <Textarea
-                      id="notes"
-                      name="notes"
-                      value={shippingInfo.notes}
-                      onChange={handleInputChange}
-                      placeholder="Instructions de livraison, point de repère, etc."
-                      className="mt-1"
-                      rows={3}
-                    />
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Notes (optionnel)</Label>
+                    <Textarea name="notes" value={shippingInfo.notes} onChange={handleInputChange} placeholder="Instructions de livraison..." rows={3} />
                   </div>
                 </div>
               </div>
 
               {/* Mode de livraison */}
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="p-6 border-b border-gray-200 flex items-center">
-                  <Truck className="h-5 w-5 mr-2 text-primary" />
-                  <h2 className="text-xl font-semibold">Mode de livraison</h2>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+                <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg font-semibold">Mode de livraison</h2>
+                  </div>
                 </div>
                 <div className="p-6">
                   <RadioGroup value={deliveryMethod} onValueChange={setDeliveryMethod}>
-                    <div className="space-y-4">
-                      {deliveryMethods.map((method) => (
-                        <div
-                          key={method.id}
-                          className={cn(
-                            "flex items-center justify-between border rounded-lg p-4 cursor-pointer transition-all",
-                            deliveryMethod === method.id
-                              ? "border-primary bg-primary/5 shadow-md"
-                              : "border-gray-200 hover:border-primary/50 hover:shadow-sm"
-                          )}
-                          onClick={() => setDeliveryMethod(method.id)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <RadioGroupItem value={method.id} id={`delivery-${method.id}`} />
-                            <div>
-                              <Label htmlFor={`delivery-${method.id}`} className="font-medium cursor-pointer">
-                                {method.name}
-                              </Label>
-                              <p className="text-sm text-muted-foreground">{method.description}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {deliveryMethods.map((method) => {
+                        const Icon = method.icon
+                        return (
+                          <div
+                            key={method.id}
+                            className={cn(
+                              "relative flex items-center justify-between border-2 rounded-xl p-4 cursor-pointer transition-all",
+                              deliveryMethod === method.id
+                                ? "border-primary bg-primary/5 shadow-md"
+                                : "border-gray-200 hover:border-primary/50"
+                            )}
+                            onClick={() => setDeliveryMethod(method.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <RadioGroupItem value={method.id} id={`delivery-${method.id}`} />
+                              <div>
+                                <Label htmlFor={`delivery-${method.id}`} className="font-semibold cursor-pointer">
+                                  {method.name}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">{method.description}</p>
+                                <p className="text-xs text-primary mt-1">Livraison en {method.delay}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-primary">{method.price.toLocaleString()} FCFA</p>
+                              <Icon className="h-4 w-4 text-muted-foreground mt-1" />
                             </div>
                           </div>
-                          <div className="text-lg font-semibold text-primary">
-                            {method.price.toLocaleString()} FCFA
-                          </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </RadioGroup>
                 </div>
               </div>
 
               {/* Mode de paiement */}
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="p-6 border-b border-gray-200 flex items-center">
-                  <CreditCard className="h-5 w-5 mr-2 text-primary" />
-                  <h2 className="text-xl font-semibold">Méthode de paiement</h2>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+                <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg font-semibold">Méthode de paiement</h2>
+                  </div>
                 </div>
                 <div className="p-6">
                   <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <div className="space-y-4">
-                      {paymentMethods.map((method) => (
-                        <div
-                          key={method.id}
-                          className={cn(
-                            "flex items-center border rounded-lg p-4 cursor-pointer transition-all",
-                            paymentMethod === method.id
-                              ? "border-primary bg-primary/5 shadow-md"
-                              : "border-gray-200 hover:border-primary/50 hover:shadow-sm"
-                          )}
-                          onClick={() => setPaymentMethod(method.id)}
-                        >
-                          <RadioGroupItem value={method.id} id={`payment-${method.id}`} className="mr-3" />
-                          <div>
-                            <Label htmlFor={`payment-${method.id}`} className="font-medium cursor-pointer">
-                              {method.name}
-                            </Label>
-                            <p className="text-sm text-muted-foreground">{method.description}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {paymentMethods.map((method) => {
+                        const Icon = method.icon
+                        return (
+                          <div
+                            key={method.id}
+                            className={cn(
+                              "flex items-center gap-3 border-2 rounded-xl p-4 cursor-pointer transition-all",
+                              paymentMethod === method.id
+                                ? "border-primary bg-primary/5 shadow-md"
+                                : "border-gray-200 hover:border-primary/50"
+                            )}
+                            onClick={() => setPaymentMethod(method.id)}
+                          >
+                            <RadioGroupItem value={method.id} id={`payment-${method.id}`} />
+                            <Icon className="h-5 w-5 text-primary" />
+                            <div className="flex-1">
+                              <Label htmlFor={`payment-${method.id}`} className="font-semibold cursor-pointer">
+                                {method.name}
+                              </Label>
+                              <p className="text-xs text-muted-foreground">{method.description}</p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </RadioGroup>
 
-                  {paymentMethod === "card" && <CardInputs />}
+                  {paymentMethod === "card" && (
+                    isLoadingCountries ? (
+                      <div className="mt-6 flex items-center justify-center p-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <span className="ml-2 text-sm">Chargement des pays...</span>
+                      </div>
+                    ) : (
+                      <CardInputs countries={countries} />
+                    )
+                  )}
                   {paymentMethod === "mobile" && <MobileInputs />}
                 </div>
               </div>
 
               <Button
                 type="submit"
-                className="w-full py-6 text-lg bg-primary hover:bg-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed"
+                size="lg"
+                className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -460,86 +860,87 @@ export default function CheckoutPage() {
 
           {/* Récapitulatif */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden sticky top-24">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-semibold">Récapitulatif de la commande</h2>
-                <p className="text-sm text-muted-foreground mt-1">{items.length} article(s)</p>
-              </div>
+            <div className="sticky top-24 space-y-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                  <h2 className="text-lg font-semibold">Récapitulatif</h2>
+                  <p className="text-sm text-muted-foreground mt-1">{items.length} article(s)</p>
+                </div>
 
-              <div className="p-6 space-y-4">
-                {/* Items */}
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex gap-3">
-                      <div className="h-12 w-12 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
-                        <Image
-                          src={item.image || "/placeholder.svg"}
-                          alt={item.name}
-                          width={48}
-                          height={48}
-                          className="object-cover"
-                        />
+                <div className="p-6 space-y-4">
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {items.map((item) => (
+                      <div key={item.id} className="flex gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="h-14 w-14 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
+                          <Image src={item.image || "/placeholder.svg"} alt={item.name} width={56} height={56} className="object-cover" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm line-clamp-2">{item.name}</p>
+                          <p className="text-xs text-muted-foreground">Quantité: {item.quantity}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-sm">{(item.price * item.quantity).toLocaleString()} FCFA</p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">Quantité: {item.quantity}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-sm">{(item.price * item.quantity).toLocaleString()} FCFA</p>
+                    ))}
+                  </div>
+
+                  <div className="border-t pt-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Sous-total</span>
+                      <span className="font-medium">{subtotal.toLocaleString()} FCFA</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Livraison ({selectedDelivery.name})</span>
+                      <span className="font-medium text-green-600">+{selectedDelivery.price.toLocaleString()} FCFA</span>
+                    </div>
+                    <div className="border-t pt-3 mt-2">
+                      <div className="flex justify-between text-lg font-bold">
+                        <span>Total</span>
+                        <span className="text-primary text-xl">{total.toLocaleString()} FCFA</span>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
 
-                <div className="border-t pt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Sous-total</span>
-                    <span>{subtotal.toLocaleString()} FCFA</span>
+                  <div className="bg-primary/5 rounded-lg p-4 text-center">
+                    <Shield className="h-5 w-5 text-primary mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">
+                      Paiement 100% sécurisé<br />
+                      Livraison suivie en temps réel
+                    </p>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Livraison ({selectedDelivery.name})</span>
-                    <span>{selectedDelivery.price.toLocaleString()} FCFA</span>
-                  </div>
-                  <div className="border-t pt-2 mt-2">
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Total</span>
-                      <span className="text-primary">{total.toLocaleString()} FCFA</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-primary/5 rounded-lg p-3 text-center text-sm">
-                  <p className="text-primary font-medium">Livraison sécurisée</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Votre commande sera livrée dans les meilleurs délais
-                  </p>
                 </div>
               </div>
-            </div>
 
-            <div className="mt-6 bg-white rounded-lg shadow-md p-6">
-              <h3 className="font-medium mb-4">Besoin d'aide ?</h3>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/contact" className="text-primary hover:underline">
-                    Contactez-nous
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/livraison" className="text-primary hover:underline">
-                    Politique de livraison
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/retours" className="text-primary hover:underline">
-                    Politique de retours
-                  </Link>
-                </li>
-              </ul>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h3 className="font-semibold mb-4">Besoin d'aide ?</h3>
+                <ul className="space-y-2 text-sm">
+                  <li>
+                    <Link href="/contact" className="text-primary hover:underline inline-flex items-center gap-1">
+                      <MessageCircle className="h-4 w-4" />
+                      Contactez-nous
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/livraison" className="text-primary hover:underline inline-flex items-center gap-1">
+                      <Truck className="h-4 w-4" />
+                      Politique de livraison
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/retours" className="text-primary hover:underline inline-flex items-center gap-1">
+                      <Package className="h-4 w-4" />
+                      Politique de retours
+                    </Link>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      <QRCodeModal isOpen={showQRModal} onClose={handleQRCodeClose} qrCodeUrl={qrCodeUrl} amount={total} orderNumber={orderNumber} />
     </main>
   )
 }

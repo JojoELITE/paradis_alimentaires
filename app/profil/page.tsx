@@ -54,7 +54,7 @@ export default function ProfilePage() {
     setIsLoading(true)
     try {
       // Appel API pour mettre à jour le profil
-      const response = await fetch("http://localhost:3333/api/profile/update", {
+      const response = await fetch("http://127.0.0.1:3333/api/profile/update", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

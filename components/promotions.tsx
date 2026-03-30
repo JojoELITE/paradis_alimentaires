@@ -34,7 +34,7 @@ function useCoupons() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("http://localhost:3333/api/merchant/coupons", {
+      const res = await fetch("http://127.0.0.1:3333/api/merchant/coupons", {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",

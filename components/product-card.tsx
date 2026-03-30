@@ -42,7 +42,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     alert(userId)
 
     try {
-      const response = await fetch("http://localhost:3333/api/cart/add", {
+      const response = await fetch("http://127.0.0.1:3333/api/cart/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -119,8 +119,8 @@ export default function ProductCard({ product }: ProductCardProps) {
     try {
       const isFav = isFavorite(product.id)
       const url = isFav 
-        ? "http://localhost:3333/api/favorites/remove"
-        : "http://localhost:3333/api/favorites/add"
+        ? "http://127.0.0.1:3333/api/favorites/remove"
+        : "http://127.0.0.1:3333/api/favorites/add"
       
       const requestBody = {
         userId: user.id,

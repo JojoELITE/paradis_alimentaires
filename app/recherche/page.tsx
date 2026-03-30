@@ -46,7 +46,7 @@ export default function SearchPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('http://localhost:3333/api/products')
+        const res = await fetch('http://127.0.0.1:3333/api/products')
         
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`)
@@ -91,7 +91,7 @@ export default function SearchPage() {
     alert(userId)
 
     try {
-      const response = await fetch("http://localhost:3333/api/cart/add", {
+      const response = await fetch("http://127.0.0.1:3333/api/cart/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -169,8 +169,8 @@ export default function SearchPage() {
     // Si l'utilisateur est connecté, utiliser l'API
     try {
       const url = isFav 
-        ? "http://localhost:3333/api/favorites/remove"
-        : "http://localhost:3333/api/favorites/add"
+        ? "http://127.0.0.1:3333/api/favorites/remove"
+        : "http://127.0.0.1:3333/api/favorites/add"
       
       const response = await fetch(url, {
         method: "POST",

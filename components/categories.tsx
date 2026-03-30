@@ -43,7 +43,7 @@ export default function Categories() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await fetch('http://localhost:3333/api/categories')
+        const res = await fetch('http://127.0.0.1:3333/api/categories')
         
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`)

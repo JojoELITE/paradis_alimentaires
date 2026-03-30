@@ -28,7 +28,7 @@ export default function FeaturedProducts() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('http://localhost:3333/api/products')
+        const res = await fetch('http://127.0.0.1:3333/api/products')
         
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`)
