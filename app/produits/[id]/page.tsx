@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 
-const API_URL = "http://localhost:3333/api"
+const API_URL = "https://ecomerce-api-1-dp0w.onrender.com/api"
 
 export default function ProductPage({
   params,
