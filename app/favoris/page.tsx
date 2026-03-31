@@ -31,7 +31,7 @@ export default function FavoritesPage() {
       if (user?.id) {
         setIsLoading(true)
         try {
-          const response = await fetch(`https://ecomerce-api-t2m8.onrender.com/api/favorites?userId=${user.id}`)
+          const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/favorites?userId=${user.id}`)
           const data = await response.json()
           
           console.log("🔵 Favoris depuis API:", data)
@@ -88,7 +88,7 @@ export default function FavoritesPage() {
     // Si l'utilisateur est connecté, supprimer aussi via l'API
     if (user?.id) {
       try {
-        const response = await fetch("hhttp://127.0.0.1:3333/api/favorites/remove", {
+        const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/favorites/remove", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
