@@ -27,7 +27,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const res = await fetch('http://127.0.0.1:3333/api/client/login', {
+      const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/client/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ export default function LoginPage() {
 
       const data = await res.json()
       console.log('Login response:', data)
-      
+
       if (res.ok && data.success) {
         // Vérifier que l'uuid est présent
         if (!data.user.id) {
@@ -56,15 +56,15 @@ export default function LoginPage() {
         // Stocker le token et l'utilisateur
         localStorage.setItem('token', data.token)
         localStorage.setItem('user', JSON.stringify(data.user))
-        
+
         // Mettre à jour le hook useAuth
         login(data.user, data.token)
-        
+
         toast({
           title: "Connexion réussie",
           description: "Bienvenue sur Paradis Alimentaire!",
         })
-        
+
         router.push('/')
       } else {
         toast({

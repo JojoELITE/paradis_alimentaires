@@ -46,14 +46,14 @@ export default function SearchPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:3333/api/products')
-        
+        const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/products')
+
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`)
         }
-        
+
         const data = await res.json()
-        
+
         if (data.success === true) {
           setAllProducts(data.data || [])
         }
@@ -86,12 +86,12 @@ export default function SearchPage() {
 
   const handleAddToCart = async (product: Product) => {
     setLoadingProductId(product.id)
-    
+
     const userId = user?.id || null
-  
+
 
     try {
-      const response = await fetch("http://127.0.0.1:3333/api/cart/add", {
+      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/cart/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -137,7 +137,7 @@ export default function SearchPage() {
 
   const handleToggleFavorite = async (product: Product) => {
     setLoadingFavoriteId(product.id)
-    
+
     const userId = user?.id || null
     const isFav = isFavorite(product.id)
 
@@ -168,10 +168,10 @@ export default function SearchPage() {
 
     // Si l'utilisateur est connecté, utiliser l'API
     try {
-      const url = isFav 
-        ? "http://127.0.0.1:3333/api/favorites/remove"
-        : "http://127.0.0.1:3333/api/favorites/add"
-      
+      const url = isFav
+        ? "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/remove"
+        : "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/add"
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -294,12 +294,12 @@ export default function SearchPage() {
                           }}
                           disabled={loadingFavoriteId === product.id}
                         >
-                          <Heart 
+                          <Heart
                             className={cn(
                               "h-5 w-5 transition-all",
                               isFavorite(product.id) ? "fill-primary text-primary" : "",
                               loadingFavoriteId === product.id && "animate-pulse"
-                            )} 
+                            )}
                           />
                         </Button>
                       </div>

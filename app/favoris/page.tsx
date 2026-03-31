@@ -31,7 +31,7 @@ export default function FavoritesPage() {
       if (user?.id) {
         setIsLoading(true)
         try {
-          const response = await fetch(`http://127.0.0.1:3333/api/favorites?userId=${user.id}`)
+          const response = await fetch(`https://ecomerce-api-t2m8.onrender.com/api/favorites?userId=${user.id}`)
           const data = await response.json()
           
           console.log("🔵 Favoris depuis API:", data)

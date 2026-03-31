@@ -44,19 +44,19 @@ export default function BoissonsPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:3333/api/products')
-        
+        const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/products')
+
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`)
         }
-        
+
         const data = await res.json()
-        
+
         if (data.success === true) {
           // Filtrer les produits de la catégorie Boissons
           const boissonsProducts = (data.data || []).filter(
-            (product: Product) => product.category?.name?.toLowerCase() === "boissons" || 
-                                  product.category?.name?.toLowerCase() === "boisson"
+            (product: Product) => product.category?.name?.toLowerCase() === "boissons" ||
+              product.category?.name?.toLowerCase() === "boisson"
           )
           setProducts(boissonsProducts)
         }
@@ -77,11 +77,11 @@ export default function BoissonsPage() {
 
   const handleAddToCart = async (product: Product) => {
     setLoadingProductId(product.id)
-    
+
     const userId = user?.uuid || null
 
     try {
-      const response = await fetch("http://127.0.0.1:3333/api/cart/add", {
+      const response = await fetch("https://ecomerce-api-t2m8.onrender.com/api/cart/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -126,7 +126,7 @@ export default function BoissonsPage() {
 
   const handleToggleFavorite = async (product: Product) => {
     setLoadingFavoriteId(product.id)
-    
+
     const userId = user?.uuid || null
     const isFav = isFavorite(product.id)
 
@@ -155,10 +155,10 @@ export default function BoissonsPage() {
     }
 
     try {
-      const url = isFav 
-        ? "http://127.0.0.1:3333/api/favorites/remove"
-        : "http://127.0.0.1:3333/api/favorites/add"
-      
+      const url = isFav
+        ? "https://ecomerce-api-t2m8.onrender.com/api/favorites/remove"
+        : "https://ecomerce-api-t2m8.onrender.com/api/favorites/add"
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -339,12 +339,12 @@ export default function BoissonsPage() {
                       }}
                       disabled={loadingFavoriteId === product.id}
                     >
-                      <Heart 
+                      <Heart
                         className={cn(
                           "h-5 w-5",
                           isFavorite(product.id) ? "fill-primary text-primary" : "",
                           loadingFavoriteId === product.id && "animate-pulse"
-                        )} 
+                        )}
                       />
                     </Button>
                   </div>
@@ -369,7 +369,7 @@ export default function BoissonsPage() {
               </CardContent>
 
               <CardFooter className="p-4 pt-0">
-                <Button 
+                <Button
                   className="w-full gap-2 bg-primary hover:bg-primary/90"
                   onClick={() => handleAddToCart(product)}
                   disabled={loadingProductId === product.id}

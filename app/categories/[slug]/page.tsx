@@ -58,18 +58,18 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
     const fetchCategoryAndProducts = async () => {
       try {
         setLoading(true)
-        
-        const categoryRes = await fetch(`http://127.0.0.1:3333/api/categories/${slug}`)
-        
+
+        const categoryRes = await fetch(`https://ecomerce-api-t2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.com/api/categories/${slug}`)
+
         if (!categoryRes.ok) {
           if (categoryRes.status === 404) {
             notFound()
           }
           throw new Error(`HTTP error! status: ${categoryRes.status}`)
         }
-        
+
         const categoryData = await categoryRes.json()
-        
+
         if (categoryData.success === true) {
           setCategory(categoryData.data)
           setProducts(categoryData.data.products || [])
@@ -89,7 +89,7 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
 
   const handleAddToCart = async (product: Product) => {
     setLoadingProductId(product.id)
-    
+
     const userId = user?.uuid || null
 
     try {
@@ -139,7 +139,7 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
 
   const handleToggleFavorite = async (product: Product) => {
     setLoadingFavoriteId(product.id)
-    
+
     const userId = user?.uuid || null
     const isFav = isFavorite(product.id)
 
@@ -170,10 +170,10 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
 
     // Si l'utilisateur est connecté, utiliser l'API
     try {
-      const url = isFav 
+      const url = isFav
         ? "http://127.0.0.1:3333/api/favorites/remove"
         : "http://127.0.0.1:3333/api/favorites/add"
-      
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -253,11 +253,11 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
       <div className="container mx-auto px-4">
         {/* Hero Section */}
         <div className="relative h-[300px] rounded-lg overflow-hidden mb-12">
-          <Image 
-            src={category.image_url || "/images/placeholder.png"} 
-            alt={category.name} 
-            fill 
-            className="object-cover" 
+          <Image
+            src={category.image_url || "/images/placeholder.png"}
+            alt={category.name}
+            fill
+            className="object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex items-center">
             <div className="p-8 max-w-xl">
@@ -339,12 +339,12 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
                         }}
                         disabled={loadingFavoriteId === product.id}
                       >
-                        <Heart 
+                        <Heart
                           className={cn(
                             "h-5 w-5",
                             isFavorite(product.id) ? "fill-primary text-primary" : "",
                             loadingFavoriteId === product.id && "animate-pulse"
-                          )} 
+                          )}
                         />
                       </Button>
                     </div>
@@ -369,7 +369,7 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
                 </CardContent>
 
                 <CardFooter className="p-4 pt-0">
-                  <Button 
+                  <Button
                     className="w-full gap-2 bg-primary hover:bg-primary/90"
                     onClick={() => handleAddToCart(product)}
                     disabled={loadingProductId === product.id}

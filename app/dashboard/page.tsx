@@ -20,6 +20,11 @@ import {
   Copy,
   X,
   ImageIcon,
+  Truck,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -57,7 +62,7 @@ import {
 import { toast } from "@/components/ui/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 
-// UploadThing — généré depuis lib/uploadthing.ts
+// UploadThing
 import { UploadButton } from "@/lib/uploadthing"
 
 // ─────────────────────────────────────────────
@@ -151,6 +156,64 @@ interface DashboardResponse {
     popularProducts: PopularProduct[]
     merchant: MerchantInfo
   }
+}
+
+// Types pour les commandes
+interface OrderItem {
+  id: string
+  product_id: string
+  product_name: string
+  product_description: string | null
+  price: number
+  quantity: number
+  subtotal: number
+  category: string | null
+  image: string | null
+}
+
+interface OrderTracking {
+  status: string
+  description: string | null
+  location: string | null
+  tracked_at: string
+}
+
+interface MerchantOrder {
+  id: string
+  order_number: string
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
+  total: number
+  subtotal: number
+  shipping_cost: number
+  customer_name: string
+  customer_email: string
+  customer_phone: string | null
+  shipping_address: string
+  payment_method: string
+  tracking_number: string | null
+  created_at: string
+  estimated_delivery: string | null
+  delivered_at: string | null
+  notes: string | null
+  items: OrderItem[]
+  tracking: OrderTracking | null
+  user: {
+    id: string
+    full_name: string
+    email: string
+  } | null
+}
+
+interface OrdersStats {
+  totalOrders: number
+  totalRevenue: number
+  pendingOrders: number
+  processingOrders: number
+  shippedOrders: number
+  deliveredOrders: number
+  cancelledOrders: number
+  totalItems: number
+  averageOrderValue: number
 }
 
 // ─────────────────────────────────────────────
@@ -250,6 +313,21 @@ export default function MerchantDashboard() {
   const [isLoadingCoupons, setIsLoadingCoupons] = useState(false)
   const [merchantCategories, setMerchantCategories] = useState<Category[]>([])
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  
+  // ── Orders state ──────────────────────────
+  const [merchantOrders, setMerchantOrders] = useState<MerchantOrder[]>([])
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false)
+  const [ordersStats, setOrdersStats] = useState<OrdersStats>({
+    totalOrders: 0,
+    totalRevenue: 0,
+    pendingOrders: 0,
+    processingOrders: 0,
+    shippedOrders: 0,
+    deliveredOrders: 0,
+    cancelledOrders: 0,
+    totalItems: 0,
+    averageOrderValue: 0
+  })
 
   // ── Form state ────────────────────────────
   const [productForm, setProductForm] = useState({
@@ -355,11 +433,40 @@ export default function MerchantDashboard() {
     }
   }
 
+  const fetchMerchantOrders = async () => {
+    if (!user) return
+    setIsLoadingOrders(true)
+    try {
+      const res = await fetch(`${BASE}/orders/all/${user.id}`, { headers: authHeaders() })
+      const result = await res.json()
+      console.log("Orders response:", result)
+      
+      if (result.success) {
+        setMerchantOrders(result.data || [])
+        if (result.stats) {
+          setOrdersStats(result.stats)
+        }
+      } else {
+        throw new Error(result.message || "Erreur lors du chargement des commandes")
+      }
+    } catch (error) {
+      console.error("Error fetching orders:", error)
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Impossible de charger les commandes",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingOrders(false)
+    }
+  }
+
   useEffect(() => {
     if (user && (user.role === "marchant" || user.role === "merchant")) {
       fetchDashboardData()
       fetchMerchantCategories()
       fetchMerchantCoupons()
+      fetchMerchantOrders()
     }
   }, [user])
 
@@ -450,7 +557,7 @@ export default function MerchantDashboard() {
         headers: authHeaders(),
         body: JSON.stringify({
           name: categoryForm.name,
-          slug: categoryForm.slug || categoryForm.name.toLowerCase().replace(/\s+/g, "-"),
+          slug: categoryForm.image_url || null,
           image_url: categoryForm.image_url || null,
         }),
       })
@@ -485,7 +592,7 @@ export default function MerchantDashboard() {
         headers: authHeaders(),
         body: JSON.stringify({
           name: editingCategory.name,
-          slug: editingCategory.slug || editingCategory.name.toLowerCase().replace(/\s+/g, "-"),
+          slug: editingCategory.image_url || null,
           image_url: editingCategory.image_url || null,
         }),
       })
@@ -600,6 +707,43 @@ export default function MerchantDashboard() {
   }
 
   // ─────────────────────────────────────────
+  // Helper pour le statut de commande
+  // ─────────────────────────────────────────
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-200">En attente</Badge>
+      case 'processing':
+        return <Badge className="bg-blue-500/10 text-blue-600 border-blue-200">En traitement</Badge>
+      case 'shipped':
+        return <Badge className="bg-purple-500/10 text-purple-600 border-purple-200">Expédiée</Badge>
+      case 'delivered':
+        return <Badge className="bg-green-500/10 text-green-600 border-green-200">Livrée</Badge>
+      case 'cancelled':
+        return <Badge className="bg-red-500/10 text-red-600 border-red-200">Annulée</Badge>
+      default:
+        return <Badge variant="secondary">{status}</Badge>
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="h-4 w-4 text-yellow-500" />
+      case 'processing':
+        return <AlertCircle className="h-4 w-4 text-blue-500" />
+      case 'shipped':
+        return <Truck className="h-4 w-4 text-purple-500" />
+      case 'delivered':
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'cancelled':
+        return <XCircle className="h-4 w-4 text-red-500" />
+      default:
+        return null
+    }
+  }
+
+  // ─────────────────────────────────────────
   // Formatters
   // ─────────────────────────────────────────
   const formatCurrency = (amount: number) =>
@@ -607,6 +751,9 @@ export default function MerchantDashboard() {
 
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+
+  const formatDateTime = (dateString: string) =>
+    new Date(dateString).toLocaleString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: '2-digit', minute: '2-digit' })
 
   // ─────────────────────────────────────────
   // Guards & derived data
@@ -631,7 +778,6 @@ export default function MerchantDashboard() {
   }
   const products = dashboardData?.products || []
   const salesChart = dashboardData?.salesChart || []
-  const pendingOrders = dashboardData?.pendingOrders || []
   const popularProducts = dashboardData?.popularProducts || []
   const merchant = dashboardData?.merchant
 
@@ -640,6 +786,9 @@ export default function MerchantDashboard() {
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.category.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const pendingOrdersList = merchantOrders.filter(order => order.status === 'pending')
+  const recentOrders = merchantOrders.slice(0, 5)
 
   // ─────────────────────────────────────────
   // Render
@@ -697,6 +846,9 @@ export default function MerchantDashboard() {
             <TabsTrigger value="products" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <Package className="h-4 w-4 mr-2" />Produits ({stats.totalProducts})
             </TabsTrigger>
+            <TabsTrigger value="orders" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <ShoppingBag className="h-4 w-4 mr-2" />Commandes ({ordersStats.totalOrders})
+            </TabsTrigger>
             <TabsTrigger value="categories" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <Tag className="h-4 w-4 mr-2" />Catégories ({merchantCategories.length})
             </TabsTrigger>
@@ -713,9 +865,9 @@ export default function MerchantDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { label: "Produits", value: stats.totalProducts, icon: Package, color: "primary" },
-                { label: "Ventes totales", value: stats.totalSales, icon: ShoppingBag, color: "green-500" },
-                { label: "Revenus", value: formatCurrency(stats.totalRevenue), icon: TrendingUp, color: "primary" },
-                { label: "J'aime", value: stats.totalLikes, icon: Heart, color: "red-500" },
+                { label: "Commandes", value: ordersStats.totalOrders, icon: ShoppingBag, color: "blue-500" },
+                { label: "Chiffre d'affaires", value: formatCurrency(ordersStats.totalRevenue), icon: TrendingUp, color: "green-500" },
+                { label: "En attente", value: ordersStats.pendingOrders, icon: Clock, color: "orange-500" },
               ].map(({ label, value, icon: Icon, color }) => (
                 <Card key={label} className="border-none shadow-lg">
                   <CardContent className="p-6">
@@ -733,92 +885,117 @@ export default function MerchantDashboard() {
               ))}
             </div>
 
-            {/* Chart + Popular products */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="lg:col-span-2 border-none shadow-lg">
-                <CardHeader>
-                  <CardTitle>Performance des ventes</CardTitle>
-                  <CardDescription>Évolution sur les 30 derniers jours</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px] flex items-end justify-between gap-1">
-                    {salesChart.length > 0 ? salesChart.map((data, i) => {
-                      const maxSales = Math.max(...salesChart.map((d) => d.sales), 1)
-                      const height = (data.sales / maxSales) * 200
-                      return (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                          <div className="w-full bg-primary rounded-t-lg transition-all duration-300" style={{ height: `${height}px` }} />
-                          <span className="text-xs text-muted-foreground">
-                            {i % 5 === 0 ? new Date(data.date).getDate() : ""}
-                          </span>
-                        </div>
-                      )
-                    }) : (
-                      <div className="w-full text-center text-muted-foreground self-center">Aucune donnée disponible</div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-none shadow-lg">
-                <CardHeader>
-                  <CardTitle>Produits populaires</CardTitle>
-                  <CardDescription>Les plus vendus</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {popularProducts.slice(0, 5).map((product, index) => (
-                    <div key={product.id} className="flex items-center gap-3">
-                      <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center font-bold text-primary">
-                        #{index + 1}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">{product.sales} ventes</p>
-                      </div>
-                      <p className="font-medium text-sm">{formatCurrency(product.revenue)}</p>
-                    </div>
-                  ))}
-                  {popularProducts.length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">Aucune vente récente</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Pending orders */}
+            {/* Commandes récentes */}
             <Card className="border-none shadow-lg">
               <CardHeader>
-                <CardTitle>Commandes en attente</CardTitle>
-                <CardDescription>{stats.pendingOrders} commande(s) à traiter</CardDescription>
+                <CardTitle>Commandes récentes</CardTitle>
+                <CardDescription>Les 5 dernières commandes</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {pendingOrders.slice(0, 5).map((order) => (
-                    <div key={order.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium">{order.orderNumber}</p>
-                        <p className="text-sm text-muted-foreground">Client: {order.customerName}</p>
-                        <p className="text-sm text-muted-foreground">Montant: {formatCurrency(order.total)}</p>
+                {isLoadingOrders ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+                    <p className="text-muted-foreground">Chargement des commandes...</p>
+                  </div>
+                ) : recentOrders.length > 0 ? (
+                  <div className="space-y-4">
+                    {recentOrders.map((order) => (
+                      <div key={order.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          {getStatusIcon(order.status)}
+                          <div>
+                            <p className="font-medium">{order.order_number}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {order.customer_name} • {formatDate(order.created_at)}
+                            </p>
+                            <p className="text-sm font-medium mt-1">{formatCurrency(order.total)}</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          {getStatusBadge(order.status)}
+                          <span className="text-xs text-muted-foreground">
+                            {order.items.length} article(s)
+                          </span>
+                        </div>
                       </div>
-                      <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-200">En attente</Badge>
-                    </div>
-                  ))}
-                  {pendingOrders.length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">Aucune commande en attente</p>
-                  )}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">Aucune commande récente</p>
+                )}
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setActiveTab("orders")}
+                >
                   Voir toutes les commandes
                   <ChevronRight className="h-4 w-4 ml-2" />
                 </Button>
               </CardFooter>
             </Card>
+
+            {/* Statistiques des commandes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="border-none shadow-lg">
+                <CardHeader>
+                  <CardTitle>Statut des commandes</CardTitle>
+                  <CardDescription>Répartition par statut</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {[
+                    { label: "En attente", count: ordersStats.pendingOrders, color: "bg-yellow-500" },
+                    { label: "En traitement", count: ordersStats.processingOrders, color: "bg-blue-500" },
+                    { label: "Expédiées", count: ordersStats.shippedOrders, color: "bg-purple-500" },
+                    { label: "Livrées", count: ordersStats.deliveredOrders, color: "bg-green-500" },
+                    { label: "Annulées", count: ordersStats.cancelledOrders, color: "bg-red-500" },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">{item.label}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-32 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className={`${item.color} h-2 rounded-full`} 
+                            style={{ width: `${ordersStats.totalOrders ? (item.count / ordersStats.totalOrders) * 100 : 0}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium w-12 text-right">{item.count}</span>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card className="border-none shadow-lg">
+                <CardHeader>
+                  <CardTitle>Informations clés</CardTitle>
+                  <CardDescription>Résumé des commandes</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center pb-2 border-b">
+                    <span className="text-muted-foreground">Total commandes</span>
+                    <span className="font-bold text-xl">{ordersStats.totalOrders}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b">
+                    <span className="text-muted-foreground">Articles vendus</span>
+                    <span className="font-bold text-xl">{ordersStats.totalItems}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b">
+                    <span className="text-muted-foreground">Chiffre d'affaires</span>
+                    <span className="font-bold text-xl text-green-600">{formatCurrency(ordersStats.totalRevenue)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Panier moyen</span>
+                    <span className="font-bold text-lg">{formatCurrency(ordersStats.averageOrderValue)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* ════════════════════════════════════════
-              TAB — PRODUCTS
+              TAB — PRODUCTS (inchangé)
           ════════════════════════════════════════ */}
           <TabsContent value="products" className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -902,7 +1079,6 @@ export default function MerchantDashboard() {
                     </Select>
                   </div>
 
-                  {/* UploadThing — image produit */}
                   <ImageUploadPreview
                     label="Image du produit"
                     imageUrl={productForm.image_url}
@@ -1000,7 +1176,128 @@ export default function MerchantDashboard() {
           </TabsContent>
 
           {/* ════════════════════════════════════════
-              TAB — CATEGORIES
+              TAB — ORDERS
+          ════════════════════════════════════════ */}
+          <TabsContent value="orders" className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex-1 max-w-sm relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher une commande..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Select defaultValue="all">
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Statut" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="pending">En attente</SelectItem>
+                    <SelectItem value="processing">En traitement</SelectItem>
+                    <SelectItem value="shipped">Expédiée</SelectItem>
+                    <SelectItem value="delivered">Livrée</SelectItem>
+                    <SelectItem value="cancelled">Annulée</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" onClick={fetchMerchantOrders}>
+                  Actualiser
+                </Button>
+              </div>
+            </div>
+
+            {isLoadingOrders ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+                <p className="text-muted-foreground">Chargement des commandes...</p>
+              </div>
+            ) : merchantOrders.length === 0 ? (
+              <Card className="border-none shadow-lg">
+                <CardContent className="p-12 text-center text-muted-foreground">
+                  <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p>Aucune commande trouvée</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {merchantOrders.map((order) => (
+                  <Card key={order.id} className="border-none shadow-lg hover:shadow-xl transition-all duration-300">
+                    <CardHeader className="pb-3">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          {getStatusIcon(order.status)}
+                          <div>
+                            <CardTitle className="text-lg">{order.order_number}</CardTitle>
+                            <CardDescription>
+                              {formatDateTime(order.created_at)}
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {getStatusBadge(order.status)}
+                          <Badge variant="outline" className="font-mono">
+                            {order.items.length} article(s)
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pb-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Client</p>
+                          <p className="text-sm">{order.customer_name}</p>
+                          <p className="text-sm text-muted-foreground">{order.customer_email}</p>
+                          {order.customer_phone && (
+                            <p className="text-sm text-muted-foreground">{order.customer_phone}</p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Adresse de livraison</p>
+                          <p className="text-sm">{order.shipping_address}</p>
+                          <p className="text-sm font-medium mt-2">Paiement</p>
+                          <p className="text-sm">{order.payment_method}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 border-t pt-4">
+                        <p className="text-sm font-medium mb-2">Produits commandés</p>
+                        <div className="space-y-2">
+                          {order.items.slice(0, 3).map((item) => (
+                            <div key={item.id} className="flex justify-between items-center text-sm">
+                              <span>{item.quantity}x {item.product_name}</span>
+                              <span>{formatCurrency(item.subtotal)}</span>
+                            </div>
+                          ))}
+                          {order.items.length > 3 && (
+                            <p className="text-xs text-muted-foreground">+ {order.items.length - 3} autres articles</p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-between items-center pt-3">
+                      <div className="flex gap-2">
+                        {order.tracking_number && (
+                          <Badge variant="outline" className="text-xs">
+                            Tracking: {order.tracking_number}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Total</p>
+                        <p className="text-xl font-bold text-primary">{formatCurrency(order.total)}</p>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ════════════════════════════════════════
+              TAB — CATEGORIES (inchangé)
           ════════════════════════════════════════ */}
           <TabsContent value="categories" className="space-y-6">
             <div className="flex justify-end">
@@ -1036,7 +1333,6 @@ export default function MerchantDashboard() {
                     />
                   </div>
 
-                  {/* UploadThing — image catégorie */}
                   <ImageUploadPreview
                     label="Image de la catégorie"
                     imageUrl={categoryForm.image_url}
@@ -1087,7 +1383,6 @@ export default function MerchantDashboard() {
                       />
                     </div>
 
-                    {/* UploadThing — image catégorie (édition) */}
                     <ImageUploadPreview
                       label="Image de la catégorie"
                       imageUrl={editingCategory.image_url || ""}
@@ -1115,7 +1410,6 @@ export default function MerchantDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {merchantCategories.map((category) => (
                 <Card key={category.id} className="border-none shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-                  {/* Bannière image */}
                   <div className="h-32 bg-primary/5 overflow-hidden relative">
                     {category.image_url ? (
                       <img
@@ -1128,7 +1422,6 @@ export default function MerchantDashboard() {
                         <Tag className="h-10 w-10 text-primary/30" />
                       </div>
                     )}
-                    {/* Overlay badge */}
                     <div className="absolute top-2 right-2">
                       <Badge variant="secondary" className="bg-white/90 text-gray-700 shadow-sm">
                         {category.productCount || 0} produits
@@ -1174,7 +1467,7 @@ export default function MerchantDashboard() {
           </TabsContent>
 
           {/* ════════════════════════════════════════
-              TAB — COUPONS
+              TAB — COUPONS (inchangé)
           ════════════════════════════════════════ */}
           <TabsContent value="coupons" className="space-y-6">
             <div className="flex justify-end">
@@ -1183,7 +1476,6 @@ export default function MerchantDashboard() {
               </Button>
             </div>
 
-            {/* Dialog — Créer coupon */}
             <Dialog open={isCouponDialogOpen} onOpenChange={setIsCouponDialogOpen}>
               <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
@@ -1279,7 +1571,6 @@ export default function MerchantDashboard() {
               </DialogContent>
             </Dialog>
 
-            {/* Grid coupons */}
             {isLoadingCoupons ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />

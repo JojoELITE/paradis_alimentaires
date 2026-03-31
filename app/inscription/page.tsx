@@ -30,10 +30,10 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     console.log("=== DÉBUT INSCRIPTION ===")
     console.log("Type d'utilisateur:", userType)
-    
+
     // Validation
     if (password !== confirmPassword) {
       toast({
@@ -75,17 +75,17 @@ export default function RegisterPage() {
 
     try {
       const fullName = `${firstName} ${lastName}`.trim()
-      
+
       // Pour un marchand, envoyer le rôle "marchant" (en anglais)
       const role = userType === "marchant" ? "marchant" : "client"
-      
+
       console.log("Envoi au serveur:", {
         full_name: fullName,
         email,
         role,
       })
-      
-      const res = await fetch('http://127.0.0.1:3333/api/client/register', {
+
+      const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/client/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,27 +101,27 @@ export default function RegisterPage() {
       const data = await res.json()
 
       console.log("Réponse du serveur:", data)
-      
+
       if (res.ok && data.success) {
         toast({
           title: "Inscription réussie",
-          description: userType === "marchant" 
+          description: userType === "marchant"
             ? "Votre boutique a été créée avec succès! Vous pouvez maintenant vous connecter."
             : "Votre compte a été créé avec succès! Vous pouvez maintenant vous connecter.",
         })
-        
+
         setTimeout(() => {
           router.push('/connexion')
         }, 1500)
       } else {
         let errorMessage = data.message || "Une erreur est survenue lors de l'inscription"
-        
+
         if (data.errors && typeof data.errors === 'string') {
           errorMessage = data.errors
         } else if (data.errors && Array.isArray(data.errors)) {
           errorMessage = data.errors.map((err: any) => err.message).join(', ')
         }
-        
+
         toast({
           title: "Erreur d'inscription",
           description: errorMessage,
@@ -159,15 +159,13 @@ export default function RegisterPage() {
             <div>
               <Label className="mb-2 block">Type de compte</Label>
               <div className="space-y-2">
-                <div 
-                  className={`flex items-center space-x-2 border rounded-lg p-3 cursor-pointer transition-colors ${
-                    userType === "client" ? "border-primary bg-primary/5" : "border-gray-200 hover:bg-gray-50"
-                  }`}
+                <div
+                  className={`flex items-center space-x-2 border rounded-lg p-3 cursor-pointer transition-colors ${userType === "client" ? "border-primary bg-primary/5" : "border-gray-200 hover:bg-gray-50"
+                    }`}
                   onClick={() => setUserType("client")}
                 >
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                    userType === "client" ? "border-primary" : "border-gray-400"
-                  }`}>
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${userType === "client" ? "border-primary" : "border-gray-400"
+                    }`}>
                     {userType === "client" && <div className="w-2 h-2 rounded-full bg-primary" />}
                   </div>
                   <User className="h-5 w-5 text-primary" />
@@ -176,16 +174,14 @@ export default function RegisterPage() {
                     <p className="text-xs text-gray-500">Acheter des produits sur la plateforme</p>
                   </div>
                 </div>
-                
-                <div 
-                  className={`flex items-center space-x-2 border rounded-lg p-3 cursor-pointer transition-colors ${
-                    userType === "marchant" ? "border-primary bg-primary/5" : "border-gray-200 hover:bg-gray-50"
-                  }`}
+
+                <div
+                  className={`flex items-center space-x-2 border rounded-lg p-3 cursor-pointer transition-colors ${userType === "marchant" ? "border-primary bg-primary/5" : "border-gray-200 hover:bg-gray-50"
+                    }`}
                   onClick={() => setUserType("marchant")}
                 >
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                    userType === "marchant" ? "border-primary" : "border-gray-400"
-                  }`}>
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${userType === "marchant" ? "border-primary" : "border-gray-400"
+                    }`}>
                     {userType === "marchant" && <div className="w-2 h-2 rounded-full bg-primary" />}
                   </div>
                   <Store className="h-5 w-5 text-primary" />

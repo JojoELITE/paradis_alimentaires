@@ -54,7 +54,7 @@ export default function ProfilePage() {
     setIsLoading(true)
     try {
       // Appel API pour mettre à jour le profil
-      const response = await fetch("http://127.0.0.1:3333/api/profile/update", {
+      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/profile/update", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -69,7 +69,7 @@ export default function ProfilePage() {
         // Mettre à jour le localStorage
         const updatedUser = { ...user, ...formData }
         localStorage.setItem("user", JSON.stringify(updatedUser))
-        
+
         toast({
           title: "Profil mis à jour",
           description: "Vos informations ont été enregistrées avec succès.",

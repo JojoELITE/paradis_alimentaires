@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useEffect, useState } from "react"
-import { 
+import {
   Apple, Carrot, Beef, Fish, Milk, ShoppingBag, Coffee, Cookie,
   LucideIcon
 } from "lucide-react"
@@ -43,14 +43,14 @@ export default function Categories() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:3333/api/categories')
-        
+        const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/categories')
+
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`)
         }
-        
+
         const data = await res.json()
-        
+
         if (data.success === true) {
           setCategories(data.data || [])
           setError(null)
@@ -100,8 +100,8 @@ export default function Categories() {
           </div>
           <div className="text-center py-12">
             <p className="text-muted-foreground"> aucune catégorie disponible pour le moment.</p>
-            <button 
-              onClick={() => window.location.reload()} 
+            <button
+              onClick={() => window.location.reload()}
               className="mt-4 text-primary hover:underline"
             >
               Réessayer
@@ -112,26 +112,26 @@ export default function Categories() {
     )
   }
 
-if (categories.length === 0) {
-  return (
-    <section className="py-16 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">Nos Catégories</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Découvrez notre large sélection de produits frais et de qualité
-          </p>
+  if (categories.length === 0) {
+    return (
+      <section className="py-16 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Nos Catégories</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Découvrez notre large sélection de produits frais et de qualité
+            </p>
+          </div>
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Aucun produit disponible pour le moment.</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Revenez bientôt pour découvrir notre sélection de produits frais et de qualité.
+            </p>
+          </div>
         </div>
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Aucun produit disponible pour le moment.</p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Revenez bientôt pour découvrir notre sélection de produits frais et de qualité.
-          </p>
-        </div>
-      </div>
-    </section>
-  )
-}
+      </section>
+    )
+  }
 
   return (
     <section className="py-16 bg-muted/30">
@@ -149,9 +149,9 @@ if (categories.length === 0) {
             .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
             .map((category) => {
               const IconComponent = category.icon_name ? iconMap[category.icon_name] : ShoppingBag
-              
+
               return (
-                <Link href={`/categories/${category.slug}`} key={category.id} className="group">
+                <Link href={`/categories/${category.name}`} key={category.id} className="group">
                   <Card
                     className={cn(
                       "overflow-hidden border-none shadow-md transition-all duration-300 group-hover:shadow-lg h-full",

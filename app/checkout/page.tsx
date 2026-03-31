@@ -659,7 +659,7 @@ export default function CheckoutPage() {
       console.error("Erreur parsing user:", e)
     }
 
-    const response = await fetch("http://127.0.0.1:3333/api/orders", {
+    const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -690,7 +690,6 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           amount: total,
           customer_account_number: shippingInfo.phone,
-          operator_code: "airtel",
           payment_api_key_public: apiKeyPublic,
           payment_api_key_secret: apiKeySecret,
           order_id: orderData.id
@@ -792,7 +791,7 @@ export default function CheckoutPage() {
   const handlePaymentSuccess = async () => {
     // Mettre à jour le statut de la commande
     try {
-      await fetch(`http://127.0.0.1:3333/api/orders/${orderId}/status`, {
+      await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${orderId}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "paid" })

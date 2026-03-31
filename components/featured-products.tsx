@@ -28,14 +28,14 @@ export default function FeaturedProducts() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:3333/api/products')
-        
+        const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/products')
+
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`)
         }
-        
+
         const data = await res.json()
-        
+
         // Vérifier si la réponse est valide
         if (data.success === true) {
           setProducts(data.data || [])

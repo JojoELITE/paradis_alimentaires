@@ -34,7 +34,7 @@ function useCoupons() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("http://127.0.0.1:3333/api/merchant/coupons", {
+      const res = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/merchant/coupons", {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -44,7 +44,7 @@ function useCoupons() {
       if (!res.ok) throw new Error(`Erreur ${res.status} : ${res.statusText}`)
 
       const json = await res.json()
-       console.log(json)
+      console.log(json)
       // Gérer tous les formats possibles retournés par AdonisJS
       if (json.success && Array.isArray(json.data)) {
         setCoupons(json.data)
@@ -93,13 +93,13 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
 
   const accentColor =
     coupon.status === "active" ? "bg-primary" :
-    coupon.status === "expired" ? "bg-red-400" : "bg-gray-300"
+      coupon.status === "expired" ? "bg-red-400" : "bg-gray-300"
 
   const statusLabel = { active: "Actif", expired: "Expiré", disabled: "Désactivé" }[coupon.status]
   const statusClass =
     coupon.status === "active" ? "bg-green-500/10 text-green-600 border-green-200" :
-    coupon.status === "expired" ? "bg-red-500/10 text-red-500 border-red-200" :
-    "bg-gray-100 text-gray-400 border-gray-200"
+      coupon.status === "expired" ? "bg-red-500/10 text-red-500 border-red-200" :
+        "bg-gray-100 text-gray-400 border-gray-200"
 
   return (
     <div className="relative flex items-stretch bg-white border border-dashed border-primary/30 rounded-xl overflow-hidden hover:shadow-md hover:border-primary/60 transition-all duration-200">
