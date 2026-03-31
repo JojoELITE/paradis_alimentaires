@@ -647,79 +647,6 @@ export default function CheckoutPage() {
     setShippingInfo((prev) => ({ ...prev, [name]: value }))
   }
 
-  const createOrder = async () => {
-    let userId: string | null = null
-    try {
-      const storedUser = localStorage.getItem("user")
-      if (storedUser) {
-        const userData = JSON.parse(storedUser)
-        userId = userData.id
-      }
-    } catch (e) {
-      console.error("Erreur parsing user:", e)
-    }
-
-    const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: userId,
-        customerAccountNumber: shippingInfo.phone,
-        shippingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
-        billingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
-        deliveryMethod: deliveryMethod,
-        deliveryPrice: selectedDelivery.price,
-        notes: shippingInfo.notes || null,
-        customerName: shippingInfo.fullName,
-        customerEmail: shippingInfo.email,
-        status: "pending_payment"
-      }),
-    })
-
-    return await response.json()
-  }
-
-  const initierPaiement = async (orderData: any) => {
-    try {
-      const apiKeyPublic = "pk_1773325888803_dt8diavuh3h"
-      const apiKeySecret = "sk_1773325888803_qt015a3cr5"
-      
-      const response = await fetch("http://localhost:3001/api/mypvit/payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: total,
-          customer_account_number: shippingInfo.phone,
-          payment_api_key_public: apiKeyPublic,
-          payment_api_key_secret: apiKeySecret,
-          order_id: orderData.id
-        })
-      })
-      
-      const data = await response.json()
-      
-      if (data.success) {
-        setPaymentStatus({
-          show: true,
-          status: 'pending',
-          message: 'Paiement en cours de traitement...',
-          transactionId: data.data.reference_id
-        })
-        return true
-      } else {
-        throw new Error(data.message || 'Erreur paiement')
-      }
-    } catch (error) {
-      console.error("Erreur paiement:", error)
-      toast({
-        title: "Erreur de paiement",
-        description: error instanceof Error ? error.message : "Impossible d'initier le paiement",
-        variant: "destructive",
-      })
-      return false
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -743,32 +670,76 @@ export default function CheckoutPage() {
     setIsSubmitting(true)
 
     try {
-      // Créer la commande
-      const orderData = await createOrder()
+      // Récupérer l'ID utilisateur
+      let userId: string | null = null
+      try {
+        const storedUser = localStorage.getItem("user")
+        if (storedUser) {
+          const userData = JSON.parse(storedUser)
+          userId = userData.id
+        }
+      } catch (e) {
+        console.error("Erreur parsing user:", e)
+      }
+
+      // Appel à l'API qui gère TOUT (création commande, paiement, vidage panier)
+      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userId,
+          customerAccountNumber: shippingInfo.phone,
+          shippingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
+          billingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
+          deliveryMethod: deliveryMethod,
+          deliveryPrice: selectedDelivery.price,
+          notes: shippingInfo.notes || null,
+          customerName: shippingInfo.fullName,
+          customerEmail: shippingInfo.email,
+        }),
+      })
+
+      const orderData = await response.json()
 
       if (orderData.success) {
         setOrderNumber(orderData.data.orderNumber)
-        setOrderId(orderData.data.id)
-        
-        if (paymentMethod === "qr") {
-          // QR Code: afficher directement le QR
-          await generateQRCode(orderData.data.orderNumber, total)
-          setIsSubmitting(false)
-        } else {
-          // Mobile Money ou Carte: initier le paiement
-          const paymentInitiated = await initierPaiement(orderData.data)
-          setIsSubmitting(false)
-          
-          if (!paymentInitiated) {
-            // Paiement échoué, on laisse la commande en pending_payment
+        setOrderId(orderData.data.orderNumber)
+
+        // Vérifier le résultat du paiement
+        if (orderData.data.payment && orderData.data.payment.success) {
+          // Paiement réussi directement
+          if (orderData.data.payment.status === 'success') {
+            setIsComplete(true)
+            clearCart()
+            toast({
+              title: "Commande confirmée !",
+              description: `Votre commande #${orderData.data.orderNumber} a été payée avec succès.`,
+            })
+          } else {
+            // Paiement en attente (Mobile Money)
             setPaymentStatus({
               show: true,
-              status: 'failed',
-              message: 'Le paiement n\'a pas pu être initié. Veuillez réessayer.',
-              transactionId: null
+              status: 'pending',
+              message: 'Paiement en cours de traitement...',
+              transactionId: orderData.data.payment.reference_id
             })
           }
+        } else if (paymentMethod === "qr") {
+          // QR Code: générer et afficher
+          const qrUrl = `http://localhost:3001/api/mypvit/qr-code/direct/generate?amount=${total}&payment_api_key_public=pk_1773325888803_dt8diavuh3h&payment_api_key_secret=sk_1773325888803_qt015a3cr5`
+          setQrCodeUrl(qrUrl)
+          setShowQRModal(true)
+        } else {
+          // Problème de paiement
+          setPaymentStatus({
+            show: true,
+            status: 'failed',
+            message: orderData.data.paymentError || 'Le paiement n\'a pas pu être initié',
+            transactionId: null
+          })
         }
+        
+        setIsSubmitting(false)
       } else {
         toast({
           title: "Erreur",
@@ -789,17 +760,6 @@ export default function CheckoutPage() {
   }
 
   const handlePaymentSuccess = async () => {
-    // Mettre à jour le statut de la commande
-    try {
-      await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${orderId}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "paid" })
-      })
-    } catch (error) {
-      console.error("Erreur mise à jour statut:", error)
-    }
-    
     setIsComplete(true)
     clearCart()
     toast({
@@ -808,47 +768,13 @@ export default function CheckoutPage() {
     })
   }
 
-  const handlePaymentRetry = async () => {
-    setIsSubmitting(true)
-    try {
-      const orderData = { id: orderId, orderNumber: orderNumber }
-      const paymentInitiated = await initierPaiement(orderData)
-      setIsSubmitting(false)
-      
-      if (!paymentInitiated) {
-        setPaymentStatus({
-          show: true,
-          status: 'failed',
-          message: 'Le paiement n\'a pas pu être initié. Veuillez réessayer.',
-          transactionId: null
-        })
-      }
-    } catch (error) {
-      setIsSubmitting(false)
-      toast({
-        title: "Erreur",
-        description: "Impossible de réessayer le paiement",
-        variant: "destructive",
-      })
-    }
+  const handlePaymentRetry = () => {
+    // Re-soumettre la commande
+    handleSubmit(new Event('submit') as any)
   }
 
   const handlePaymentClose = () => {
     setPaymentStatus({ show: false, status: 'pending', message: '', transactionId: null })
-  }
-
-  const generateQRCode = async (orderId: string, amount: number) => {
-    try {
-      const apiKeyPublic = "pk_1773325888803_dt8diavuh3h"
-      const apiKeySecret = "sk_1773325888803_qt015a3cr5"
-      const qrCodeUrl = `http://localhost:3001/api/mypvit/qr-code/direct/generate?amount=${amount}&payment_api_key_public=${apiKeyPublic}&payment_api_key_secret=${apiKeySecret}`
-      setQrCodeUrl(qrCodeUrl)
-      setShowQRModal(true)
-      return qrCodeUrl
-    } catch (error) {
-      console.error("Erreur génération QR code:", error)
-      throw error
-    }
   }
 
   const handleQRCodeClose = () => {
