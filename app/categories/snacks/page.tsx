@@ -44,7 +44,7 @@ export default function SnacksPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:3333/api/products')
+        const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/products')
         
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`)
@@ -81,7 +81,7 @@ export default function SnacksPage() {
     const userId = user?.uuid || null
 
     try {
-      const response = await fetch("http://127.0.0.1:3333/api/cart/add", {
+      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/cart/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -156,8 +156,8 @@ export default function SnacksPage() {
 
     try {
       const url = isFav 
-        ? "http://127.0.0.1:3333/api/favorites/remove"
-        : "http://127.0.0.1:3333/api/favorites/add"
+        ? "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/remove"
+        : "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/add"
       
       const response = await fetch(url, {
         method: "POST",
