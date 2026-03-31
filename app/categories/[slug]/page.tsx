@@ -59,7 +59,7 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
       try {
         setLoading(true)
 
-        const categoryRes = await fetch(`https://ecomerce-api-t2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.comt2m8.onrender.com/api/categories/${slug}`)
+        const categoryRes = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${slug}`)
 
         if (!categoryRes.ok) {
           if (categoryRes.status === 404) {
@@ -93,7 +93,7 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
     const userId = user?.uuid || null
 
     try {
-      const response = await fetch("http://127.0.0.1:3333/api/cart/add", {
+      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/cart/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -171,8 +171,8 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
     // Si l'utilisateur est connecté, utiliser l'API
     try {
       const url = isFav
-        ? "http://127.0.0.1:3333/api/favorites/remove"
-        : "http://127.0.0.1:3333/api/favorites/add"
+        ? "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/remove"
+        : "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/add"
 
       const response = await fetch(url, {
         method: "POST",
