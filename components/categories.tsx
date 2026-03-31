@@ -43,7 +43,7 @@ export default function Categories() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/categories')
+        const res = await fetch('http://localhost:3333/api/categories')
 
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`)

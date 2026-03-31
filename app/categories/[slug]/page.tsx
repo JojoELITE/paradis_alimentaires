@@ -90,7 +90,7 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
   const handleAddToCart = async (product: Product) => {
     setLoadingProductId(product.id)
 
-    const userId = user?.uuid || null
+    const userId = user?.id || null
 
     try {
       const response = await fetch("http://127.0.0.1:3333/api/cart/add", {

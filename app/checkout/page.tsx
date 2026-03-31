@@ -63,12 +63,12 @@ function CardInputs({ countries }: { countries: Country[] }) {
   useEffect(() => {
     const fetchOperators = async () => {
       if (!selectedCountry) return
-      
+
       setIsLoadingOperators(true)
       try {
         const response = await fetch(`http://localhost:3001/api/mypvit/operators/${selectedCountry}`)
         const data = await response.json()
-        
+
         if (data.success && data.data.operators) {
           const activeOperators = data.data.operators.filter((op: Operator) => op.active === true)
           setOperators(activeOperators)
@@ -205,7 +205,7 @@ function MobileInputs() {
       try {
         const response = await fetch("http://localhost:3001/api/mypvit/countries")
         const data = await response.json()
-        
+
         if (data.success && data.data) {
           setCountries(data.data.filter((country: Country) => country.status === true))
         }
@@ -227,12 +227,12 @@ function MobileInputs() {
   useEffect(() => {
     const fetchOperators = async () => {
       if (!selectedCountry) return
-      
+
       setIsLoadingOperators(true)
       try {
         const response = await fetch(`http://localhost:3001/api/mypvit/operators/${selectedCountry}`)
         const data = await response.json()
-        
+
         if (data.success && data.data.operators) {
           const activeOperators = data.data.operators.filter((op: Operator) => op.active === true)
           setOperators(activeOperators)
@@ -354,9 +354,9 @@ function MobileInputs() {
 }
 
 // --- Composant QRCodeModal ---
-function QRCodeModal({ isOpen, onClose, qrCodeUrl, amount, orderNumber }: { 
-  isOpen: boolean; 
-  onClose: () => void; 
+function QRCodeModal({ isOpen, onClose, qrCodeUrl, amount, orderNumber }: {
+  isOpen: boolean;
+  onClose: () => void;
   qrCodeUrl: string | null;
   amount: number;
   orderNumber: string | null;
@@ -410,9 +410,9 @@ function QRCodeModal({ isOpen, onClose, qrCodeUrl, amount, orderNumber }: {
         <div className="flex flex-col items-center py-6">
           {qrCodeUrl ? (
             <div className="bg-white p-4 rounded-xl shadow-lg border-2 border-primary/20">
-              <img 
-                src={qrCodeUrl} 
-                alt="QR Code de paiement" 
+              <img
+                src={qrCodeUrl}
+                alt="QR Code de paiement"
                 className="w-64 h-64 object-contain"
               />
             </div>
@@ -421,16 +421,16 @@ function QRCodeModal({ isOpen, onClose, qrCodeUrl, amount, orderNumber }: {
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
             </div>
           )}
-          
+
           <div className="mt-6 w-full space-y-3 text-center">
             <div>
               <p className="text-sm text-muted-foreground">Montant à payer</p>
               <p className="text-3xl font-bold text-primary">{amount.toLocaleString()} FCFA</p>
             </div>
-            
+
             {!paymentConfirmed && (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full mt-4"
                 onClick={checkPaymentStatus}
                 disabled={isPolling}
@@ -453,9 +453,9 @@ function QRCodeModal({ isOpen, onClose, qrCodeUrl, amount, orderNumber }: {
 }
 
 // --- Composant PaymentStatusModal ---
-function PaymentStatusModal({ isOpen, onClose, status, message, transactionId, onSuccess, onRetry }: { 
-  isOpen: boolean; 
-  onClose: () => void; 
+function PaymentStatusModal({ isOpen, onClose, status, message, transactionId, onSuccess, onRetry }: {
+  isOpen: boolean;
+  onClose: () => void;
   status: 'pending' | 'success' | 'failed';
   message: string;
   transactionId: string | null;
@@ -476,14 +476,14 @@ function PaymentStatusModal({ isOpen, onClose, status, message, transactionId, o
 
     const checkPayment = async () => {
       if (!transactionId) return
-      
+
       try {
         const operatorCode = "airtel"
         const response = await fetch(
           `http://localhost:3001/api/mypvit/transaction/status?transactionId=${transactionId}&accountOperationCode=${operatorCode}&transactionOperation=PAYMENT`
         )
         const data = await response.json()
-        
+
         if (data.success && data.data.is_success) {
           if (intervalRef.current) clearInterval(intervalRef.current)
           intervalRef.current = null
@@ -502,7 +502,7 @@ function PaymentStatusModal({ isOpen, onClose, status, message, transactionId, o
     }
 
     intervalRef.current = setInterval(checkPayment, 5000)
-    
+
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
@@ -567,9 +567,9 @@ function PaymentStatusModal({ isOpen, onClose, status, message, transactionId, o
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">{message}</p>
           <p className="text-xs text-muted-foreground mt-2">Vérification automatique...</p>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="mt-4"
             onClick={() => {
               if (intervalRef.current) clearInterval(intervalRef.current)
@@ -623,7 +623,7 @@ export default function CheckoutPage() {
       try {
         const response = await fetch("http://localhost:3001/api/mypvit/countries")
         const data = await response.json()
-        
+
         if (data.success && data.data) {
           setCountries(data.data.filter((country: Country) => country.status === true))
         }
@@ -683,7 +683,7 @@ export default function CheckoutPage() {
       }
 
       // Appel à l'API qui gère TOUT (création commande, paiement, vidage panier)
-      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/orders", {
+      const response = await fetch("http://localhost:3333/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -738,7 +738,7 @@ export default function CheckoutPage() {
             transactionId: null
           })
         }
-        
+
         setIsSubmitting(false)
       } else {
         toast({
@@ -1094,8 +1094,8 @@ export default function CheckoutPage() {
       </div>
 
       <QRCodeModal isOpen={showQRModal} onClose={handleQRCodeClose} qrCodeUrl={qrCodeUrl} amount={total} orderNumber={orderNumber} />
-      
-      <PaymentStatusModal 
+
+      <PaymentStatusModal
         isOpen={paymentStatus.show}
         onClose={handlePaymentClose}
         status={paymentStatus.status}
