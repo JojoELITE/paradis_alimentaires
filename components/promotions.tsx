@@ -34,7 +34,7 @@ function useCoupons() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/merchant/coupons", {
+      const res = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/coupons", {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
