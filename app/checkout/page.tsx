@@ -621,7 +621,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const response = await fetch("http://localhost:3001/api/mypvit/countries")
+        const response = await fetch("https://api-akiba-1.onrender.com/api/mypvit/countries")
         const data = await response.json()
         
         if (data.success && data.data) {
