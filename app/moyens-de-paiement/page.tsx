@@ -1,8 +1,93 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import MoyensPaiement from "@/components/moyens-paiement"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Loader2, Smartphone, Globe, Building2 } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
+import { Label } from "@/components/ui/label"
+
+interface Country {
+  name: string
+  iso_code: string
+  status: boolean
+}
+
+interface Operator {
+  name: string
+  code: string
+  active: boolean
+  provider: string
+  country: {
+    name: string
+    iso_code: string
+  }
+}
 
 export default function PaymentMethodsPage() {
+  const [countries, setCountries] = useState<Country[]>([])
+  const [selectedCountry, setSelectedCountry] = useState<string>("")
+  const [operators, setOperators] = useState<Operator[]>([])
+  const [isLoadingCountries, setIsLoadingCountries] = useState(true)
+  const [isLoadingOperators, setIsLoadingOperators] = useState(false)
+
+  // Charger la liste des pays
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch("https://api-akiba-1.onrender.com/api/mypvit/countries")
+        const data = await response.json()
+        if (data.success && data.data) {
+          const activeCountries = data.data.filter((c: Country) => c.status === true)
+          setCountries(activeCountries)
+          if (activeCountries.length > 0) {
+            setSelectedCountry(activeCountries[0].iso_code)
+          }
+        }
+      } catch (error) {
+        console.error("Erreur chargement pays:", error)
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger la liste des pays",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingCountries(false)
+      }
+    }
+    fetchCountries()
+  }, [])
+
+  // Charger les opérateurs lorsque le pays change
+  useEffect(() => {
+    if (!selectedCountry) return
+    const fetchOperators = async () => {
+      setIsLoadingOperators(true)
+      try {
+        const response = await fetch(`https://api-akiba-1.onrender.com/api/mypvit/operators/${selectedCountry}`)
+        const data = await response.json()
+        if (data.success && data.data.operators) {
+          const activeOps = data.data.operators.filter((op: Operator) => op.active === true)
+          setOperators(activeOps)
+        } else {
+          setOperators([])
+        }
+      } catch (error) {
+        console.error("Erreur chargement opérateurs:", error)
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les opérateurs",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingOperators(false)
+      }
+    }
+    fetchOperators()
+  }, [selectedCountry])
+
   return (
     <main className="flex min-h-screen flex-col pt-32 pb-16">
       <div className="container mx-auto px-4">
@@ -13,8 +98,85 @@ export default function PaymentMethodsPage() {
           </p>
         </div>
 
-        <MoyensPaiement />
 
+        {/* Nouvelle section : Opérateurs Mobile Money par pays */}
+        <div className="mt-16">
+          <Card className="border-0 shadow-md">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-white border-b">
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <Smartphone className="h-6 w-6 text-primary" />
+                Opérateurs Mobile Money disponibles
+              </CardTitle>
+              <CardDescription>
+                Sélectionnez un pays pour voir les opérateurs Mobile Money actifs
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-6">
+                {/* Sélecteur de pays */}
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-sm font-semibold flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-primary" />
+                      Pays
+                    </Label>
+                    {isLoadingCountries ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Chargement des pays...</span>
+                      </div>
+                    ) : (
+                      <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                        <SelectTrigger className="w-[280px]">
+                          <SelectValue placeholder="Choisissez un pays" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {countries.map((country) => (
+                            <SelectItem key={country.iso_code} value={country.iso_code}>
+                              {country.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                </div>
+
+                {/* Liste des opérateurs */}
+                {isLoadingOperators ? (
+                  <div className="flex justify-center items-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-2">Chargement des opérateurs...</span>
+                  </div>
+                ) : operators.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {operators.map((operator) => (
+                      <div
+                        key={operator.code}
+                        className="flex items-center gap-3 p-4 rounded-xl border bg-white hover:shadow-md transition-shadow"
+                      >
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Building2 className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold">{operator.name}</p>
+                          <p className="text-xs text-muted-foreground">{operator.provider}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl bg-gray-50">
+                    <Smartphone className="h-10 w-10 mx-auto mb-2 text-gray-400" />
+                    <p>Aucun opérateur actif pour ce pays.</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Le reste de la page reste inchangé */}
         <div className="mt-16">
           <h2 className="text-2xl font-bold mb-6">Comment ça marche ?</h2>
 
