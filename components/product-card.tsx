@@ -41,7 +41,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     const userId = user?.id || null
 
     try {
-      const response = await fetch("https://api-akiba-1.onrender.com/api/cart/add", {
+      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/cart/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -118,8 +118,8 @@ export default function ProductCard({ product }: ProductCardProps) {
     try {
       const isFav = isFavorite(product.id)
       const url = isFav
-        ? "https://api-akiba-1.onrender.com/api/favorites/remove"
-        : "https://api-akiba-1.onrender.com/api/favorites/add"
+        ? "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/remove"
+        : "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/add"
 
       const requestBody = {
         userId: user.id,

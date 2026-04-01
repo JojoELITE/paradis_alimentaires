@@ -66,7 +66,7 @@ function CardInputs({ countries }: { countries: Country[] }) {
 
       setIsLoadingOperators(true)
       try {
-        const response = await fetch(`https://api-akiba-1.onrender.com/api/mypvit/operators/${selectedCountry}`)
+        const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/mypvit/operators/${selectedCountry}`)
         const data = await response.json()
 
         if (data.success && data.data.operators) {
@@ -203,7 +203,7 @@ function MobileInputs() {
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const response = await fetch("https://api-akiba-1.onrender.com/api/mypvit/countries")
+        const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/mypvit/countries")
         const data = await response.json()
 
         if (data.success && data.data) {
@@ -230,7 +230,7 @@ function MobileInputs() {
 
       setIsLoadingOperators(true)
       try {
-        const response = await fetch(`https://api-akiba-1.onrender.com/api/mypvit/operators/${selectedCountry}`)
+        const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/mypvit/operators/${selectedCountry}`)
         const data = await response.json()
 
         if (data.success && data.data.operators) {
@@ -480,7 +480,7 @@ function PaymentStatusModal({ isOpen, onClose, status, message, transactionId, o
       try {
         const operatorCode = "airtel"
         const response = await fetch(
-          `https://api-akiba-1.onrender.com/api/mypvit/transaction/status?transactionId=${transactionId}&accountOperationCode=${operatorCode}&transactionOperation=PAYMENT`
+          `https://ecomerce-api-1-dp0w.onrender.com/api/mypvit/transaction/status?transactionId=${transactionId}&accountOperationCode=${operatorCode}&transactionOperation=PAYMENT`
         )
         const data = await response.json()
 
@@ -621,7 +621,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const response = await fetch("https://api-akiba-1.onrender.com/api/mypvit/countries")
+        const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/mypvit/countries")
         const data = await response.json()
 
         if (data.success && data.data) {
@@ -726,7 +726,7 @@ export default function CheckoutPage() {
           }
         } else if (paymentMethod === "qr") {
           // QR Code: générer et afficher
-          const qrUrl = `https://api-akiba-1.onrender.com/api/mypvit/qr-code/direct/generate?amount=${total}&payment_api_key_public=pk_1773325888803_dt8diavuh3h&payment_api_key_secret=sk_1773325888803_qt015a3cr5`
+          const qrUrl = `https://ecomerce-api-1-dp0w.onrender.com/api/mypvit/qr-code/direct/generate?amount=${total}&payment_api_key_public=pk_1773325888803_dt8diavuh3h&payment_api_key_secret=sk_1773325888803_qt015a3cr5`
           setQrCodeUrl(qrUrl)
           setShowQRModal(true)
         } else {
