@@ -65,7 +65,7 @@ export default function CategoryPage() {
       try {
         setLoading(true)
 
-        const res = await fetch(`http://127.0.0.1:3333/api/categories/${slug}`)
+        const res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${slug}`)
         if (!res.ok) {
           if (res.status === 404) notFound()
           throw new Error(`HTTP error ${res.status}`)
