@@ -37,7 +37,7 @@ export default function PaymentMethodsPage() {
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/mypvit/countries")
+        const response = await fetch("https://api-akiba-1.onrender.com/api/mypvit/countries")
         const data = await response.json()
         if (data.success && data.data) {
           const activeCountries = data.data.filter((c: Country) => c.status === true)
@@ -66,7 +66,7 @@ export default function PaymentMethodsPage() {
     const fetchOperators = async () => {
       setIsLoadingOperators(true)
       try {
-        const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/mypvit/operators/${selectedCountry}`)
+        const response = await fetch(`https://api-akiba-1.onrender.com/api/mypvit/operators/${selectedCountry}`)
         const data = await response.json()
         if (data.success && data.data.operators) {
           const activeOps = data.data.operators.filter((op: Operator) => op.active === true)
