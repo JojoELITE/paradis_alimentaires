@@ -683,7 +683,7 @@ export default function CheckoutPage() {
       }
 
       // Appel à l'API qui gère TOUT (création commande, paiement, vidage panier)
-      const response = await fetch("http://localhost:3333/api/orders", {
+      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

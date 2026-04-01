@@ -27,7 +27,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const res = await fetch('http://localhost:3333/api/client/login', {
+      const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/client/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

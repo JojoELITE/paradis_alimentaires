@@ -7,57 +7,112 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 
-const slides = [
-  {
-    id: 1,
-    title: "Découvrez nos produits frais",
-    description: "Une sélection de produits de qualité pour votre bien-être quotidien",
-    image: "/images/hero1.jpeg",
-    cta: "Découvrir",
-    link: "/produits",
-  },
-  {
-    id: 2,
-    title: "Promotions exceptionnelles",
-    description: "Profitez de nos offres spéciales sur une large gamme de produits",
-    image: "/images/hero2.jpeg",
-    cta: "Voir les offres",
-    link: "/promotions",
-  },
-  {
-    id: 3,
-    title: "Livraison rapide",
-    description: "Commandez aujourd'hui et recevez vos produits en 24h",
-    image: "/images/hero3.jpeg",
-    cta: "Commander",
-    link: "/produits",
-  },
-]
+const API_BASE = "http://127.0.0.1:3333/api"
+
+interface Pub {
+  id: string
+  name: string
+  description: string
+  imageUrl: string
+  displayDuration: number
+  startDate: string | null
+  endDate: string | null
+  isActive: boolean
+  priority: number
+  targetUrl: string | null
+  merchantId: string | null
+  createdAt: string
+}
 
 export default function Hero() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [slides, setSlides] = useState<any[]>([])
 
-  const nextSlide = useCallback(() => {
-    if (isAnimating) return
-    setIsAnimating(true)
-    setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1))
-    setTimeout(() => setIsAnimating(false), 500)
-  }, [isAnimating])
+  // 🔥 Filtrer les pubs actives + dates valides
+  const isValidPub = (pub: Pub) => {
+    const now = new Date()
 
-  const prevSlide = useCallback(() => {
-    if (isAnimating) return
-    setIsAnimating(true)
-    setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1))
-    setTimeout(() => setIsAnimating(false), 500)
-  }, [isAnimating])
+    if (!pub.isActive) return false
 
+    if (pub.startDate && new Date(pub.startDate) > now) return false
+    if (pub.endDate && new Date(pub.endDate) < now) return false
+
+    return true
+  }
+
+  // 🔥 Fetch + transformation
   useEffect(() => {
+    const fetchPubs = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/pubs`)
+        const result = await response.json()
+
+        const pubs: Pub[] = result?.data?.data || []
+
+        const validPubs = pubs
+          .filter(isValidPub)
+          .sort((a, b) => a.priority - b.priority)
+
+        const pubSlides = validPubs.map((pub) => ({
+          id: pub.id,
+          title: pub.name,
+          description: pub.description,
+          image: pub.imageUrl || "/placeholder.svg",
+          duration: pub.displayDuration || 5,
+          cta: "Découvrir",
+          link: pub.targetUrl || "/produits",
+        }))
+
+        setSlides(pubSlides)
+      } catch (error) {
+        console.error("Erreur lors du chargement des pubs:", error)
+      }
+    }
+
+    fetchPubs()
+  }, [])
+
+  // 🔁 Next slide
+  const nextSlide = useCallback(() => {
+    if (isAnimating || slides.length === 0) return
+    setIsAnimating(true)
+
+    setCurrentSlide((prev) =>
+      prev === slides.length - 1 ? 0 : prev + 1
+    )
+
+    setTimeout(() => setIsAnimating(false), 500)
+  }, [isAnimating, slides.length])
+
+  // 🔁 Prev slide
+  const prevSlide = useCallback(() => {
+    if (isAnimating || slides.length === 0) return
+    setIsAnimating(true)
+
+    setCurrentSlide((prev) =>
+      prev === 0 ? slides.length - 1 : prev - 1
+    )
+
+    setTimeout(() => setIsAnimating(false), 500)
+  }, [isAnimating, slides.length])
+
+  // ⏱️ Auto slide dynamique
+  useEffect(() => {
+    if (slides.length === 0) return
+
+    const duration = slides[currentSlide]?.duration || 5
+
     const interval = setInterval(() => {
       nextSlide()
-    }, 5000)
+    }, duration * 1000)
+
     return () => clearInterval(interval)
-  }, [nextSlide])
+  }, [currentSlide, slides, nextSlide])
+
+  if (slides.length === 0) {
+    return null
+  }
 
   return (
     <section className="relative w-full h-[500px] md:h-[600px] overflow-hidden">
@@ -66,41 +121,54 @@ export default function Hero() {
           key={slide.id}
           className={cn(
             "absolute inset-0 transition-opacity duration-500 ease-in-out",
-            currentSlide === index ? "opacity-100 z-10" : "opacity-0 z-0",
+            currentSlide === index ? "opacity-100 z-10" : "opacity-0 z-0"
           )}
         >
+          {/* Overlay */}
           <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent z-10" />
+
+          {/* Image */}
           <Image
-            src={slide.image || "/placeholder.svg"}
+            src={slide.image}
             alt={slide.title}
             fill
             className="object-cover"
             priority={index === 0}
           />
+
+          {/* Content */}
           <div className="relative z-20 h-full flex flex-col justify-center container mx-auto px-4">
             <div className="max-w-xl space-y-6">
               <h1
                 className={cn(
                   "text-4xl md:text-5xl lg:text-6xl font-bold text-white transition-all duration-700",
-                  currentSlide === index ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0",
+                  currentSlide === index
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-10 opacity-0"
                 )}
                 style={{ transitionDelay: "200ms" }}
               >
                 {slide.title}
               </h1>
+
               <p
                 className={cn(
                   "text-lg md:text-xl text-white/90 transition-all duration-700",
-                  currentSlide === index ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0",
+                  currentSlide === index
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-10 opacity-0"
                 )}
                 style={{ transitionDelay: "400ms" }}
               >
                 {slide.description}
               </p>
+
               <div
                 className={cn(
                   "transition-all duration-700",
-                  currentSlide === index ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0",
+                  currentSlide === index
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-10 opacity-0"
                 )}
                 style={{ transitionDelay: "600ms" }}
               >
@@ -115,7 +183,7 @@ export default function Hero() {
         </div>
       ))}
 
-      {/* Navigation Arrows */}
+      {/* ⬅️ Prev */}
       <div className="absolute bottom-1/2 left-4 z-30 transform translate-y-1/2">
         <Button
           variant="ghost"
@@ -126,6 +194,8 @@ export default function Hero() {
           <ChevronLeft className="h-6 w-6" />
         </Button>
       </div>
+
+      {/* ➡️ Next */}
       <div className="absolute bottom-1/2 right-4 z-30 transform translate-y-1/2">
         <Button
           variant="ghost"
@@ -137,14 +207,16 @@ export default function Hero() {
         </Button>
       </div>
 
-      {/* Indicators */}
+      {/* 🔘 Indicators */}
       <div className="absolute bottom-6 left-0 right-0 z-30 flex justify-center space-x-2">
         {slides.map((_, index) => (
           <button
             key={index}
             className={cn(
               "w-3 h-3 rounded-full transition-all duration-300",
-              currentSlide === index ? "bg-primary w-8" : "bg-white/50 hover:bg-white/80",
+              currentSlide === index
+                ? "bg-primary w-8"
+                : "bg-white/50 hover:bg-white/80"
             )}
             onClick={() => {
               setIsAnimating(true)

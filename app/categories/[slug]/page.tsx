@@ -1,13 +1,13 @@
 "use client"
 
-import { notFound } from "next/navigation"
+import { useEffect, useState } from "react"
+import { useParams, notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ShoppingCart, Heart, Filter } from "lucide-react"
-import { useEffect, useState } from "react"
 import { useCart } from "@/hooks/use-cart"
 import { useFavorites } from "@/hooks/use-favorites"
 import { useAuth } from "@/hooks/use-auth"
@@ -22,6 +22,7 @@ interface Category {
   image_url: string | null
   icon_name: string | null
   product_count: number
+  products?: Product[]
 }
 
 interface Product {
@@ -42,43 +43,45 @@ interface Product {
   description?: string
 }
 
-export default function CategoryPage({ params }: { params: { slug: string } }) {
-  const { slug } = params
+export default function CategoryPage() {
+  const params = useParams()
+  const slug = params?.slug
+
   const [category, setCategory] = useState<Category | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [loadingProductId, setLoadingProductId] = useState<number | null>(null)
   const [loadingFavoriteId, setLoadingFavoriteId] = useState<number | null>(null)
+
   const { addItem } = useCart()
   const { addItem: addToFavorites, removeItem: removeFromFavorites, isFavorite } = useFavorites()
   const { user } = useAuth()
 
   useEffect(() => {
+    if (!slug) return
+
     const fetchCategoryAndProducts = async () => {
       try {
         setLoading(true)
 
-        const categoryRes = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${slug}`)
-
-        if (!categoryRes.ok) {
-          if (categoryRes.status === 404) {
-            notFound()
-          }
-          throw new Error(`HTTP error! status: ${categoryRes.status}`)
+        const res = await fetch(`http://127.0.0.1:3333/api/categories/${slug}`)
+        if (!res.ok) {
+          if (res.status === 404) notFound()
+          throw new Error(`HTTP error ${res.status}`)
         }
 
-        const categoryData = await categoryRes.json()
+        const data = await res.json()
 
-        if (categoryData.success === true) {
-          setCategory(categoryData.data)
-          setProducts(categoryData.data.products || [])
+        if (data.success) {
+          setCategory(data.data)
+          setProducts(data.data.products || [])
         } else {
-          throw new Error(categoryData.message || 'Failed to fetch category')
+          throw new Error(data.message || "Impossible de récupérer la catégorie")
         }
       } catch (err) {
-        console.error('Error fetching category:', err)
-        setError(err instanceof Error ? err.message : 'An error occurred')
+        console.error(err)
+        setError(err instanceof Error ? err.message : "Erreur inconnue")
       } finally {
         setLoading(false)
       }
@@ -89,29 +92,17 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
 
   const handleAddToCart = async (product: Product) => {
     setLoadingProductId(product.id)
-
     const userId = user?.id || null
 
     try {
       const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/cart/add", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: userId,
-          productId: product.id,
-          quantity: 1,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, productId: product.id, quantity: 1 }),
       })
-
       const data = await response.json()
+      if (!response.ok) throw new Error(data.message || "Impossible d'ajouter au panier")
 
-      if (!response.ok) {
-        throw new Error(data.message || "Impossible d'ajouter au panier")
-      }
-
-      // Ajouter au panier local
       addItem({
         id: product.id,
         name: product.name,
@@ -121,15 +112,12 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
         category: product.category?.name || "Produits",
       })
 
-      toast({
-        title: "Produit ajouté au panier",
-        description: `${product.name} a été ajouté à votre panier.`,
-      })
+      toast({ title: "Produit ajouté au panier", description: `${product.name} a été ajouté à votre panier.` })
     } catch (error) {
       console.error("Erreur panier:", error)
       toast({
         title: "Erreur",
-        description: error instanceof Error ? error.message : `${product.name} n'a pas pu être ajouté au panier.`,
+        description: error instanceof Error ? error.message : "Erreur ajout panier",
         variant: "destructive",
       })
     } finally {
@@ -139,19 +127,12 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
 
   const handleToggleFavorite = async (product: Product) => {
     setLoadingFavoriteId(product.id)
-
     const userId = user?.id || null
     const isFav = isFavorite(product.id)
 
-    // Si l'utilisateur n'est pas connecté, utiliser le localStorage
     if (!userId) {
-      if (isFav) {
-        removeFromFavorites(product.id)
-        toast({
-          title: "Produit retiré des favoris",
-          description: `${product.name} a été retiré de vos favoris.`,
-        })
-      } else {
+      if (isFav) removeFromFavorites(product.id)
+      else
         addToFavorites({
           id: product.id,
           name: product.name,
@@ -159,16 +140,10 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
           image: product.image_url || "/images/placeholder.png",
           category: product.category?.name || "Produits",
         })
-        toast({
-          title: "Produit ajouté aux favoris",
-          description: `${product.name} a été ajouté à vos favoris.`,
-        })
-      }
       setLoadingFavoriteId(null)
       return
     }
 
-    // Si l'utilisateur est connecté, utiliser l'API
     try {
       const url = isFav
         ? "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/remove"
@@ -176,28 +151,14 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
 
       const response = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: userId,
-          productId: product.id,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, productId: product.id }),
       })
-
       const data = await response.json()
+      if (!response.ok) throw new Error(data.message || "Erreur favoris")
 
-      if (!response.ok) {
-        throw new Error(data.message || `Erreur ${response.status}`)
-      }
-
-      if (isFav) {
-        removeFromFavorites(product.id)
-        toast({
-          title: "Produit retiré des favoris",
-          description: `${product.name} a été retiré de vos favoris.`,
-        })
-      } else {
+      if (isFav) removeFromFavorites(product.id)
+      else
         addToFavorites({
           id: product.id,
           name: product.name,
@@ -205,16 +166,11 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
           image: product.image_url || "/images/placeholder.png",
           category: product.category?.name || "Produits",
         })
-        toast({
-          title: "Produit ajouté aux favoris",
-          description: `${product.name} a été ajouté à vos favoris.`,
-        })
-      }
     } catch (error) {
       console.error("Erreur favoris:", error)
       toast({
         title: "Erreur",
-        description: error instanceof Error ? error.message : "Une erreur est survenue. Veuillez réessayer.",
+        description: error instanceof Error ? error.message : "Erreur favoris",
         variant: "destructive",
       })
     } finally {
@@ -222,36 +178,15 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
     }
   }
 
-  const formatPrice = (price: number) => {
-    return price.toLocaleString()
-  }
+  const formatPrice = (price: number) => price.toLocaleString()
 
-  if (loading) {
-    return (
-      <main className="flex min-h-screen flex-col pt-32 pb-16">
-        <div className="container mx-auto px-4">
-          <div className="animate-pulse">
-            <div className="h-[300px] bg-gray-200 rounded-lg mb-12"></div>
-            <div className="h-12 bg-gray-200 rounded mb-8"></div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-80 bg-gray-200 rounded-lg"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </main>
-    )
-  }
-
-  if (error || !category) {
-    notFound()
-  }
+  if (loading) return <div className="p-8">Chargement...</div>
+  if (error || !category) notFound()
 
   return (
     <main className="flex min-h-screen flex-col pt-32 pb-16">
       <div className="container mx-auto px-4">
-        {/* Hero Section */}
+        {/* Hero */}
         <div className="relative h-[300px] rounded-lg overflow-hidden mb-12">
           <Image
             src={category.image_url || "/images/placeholder.png"}
@@ -262,9 +197,7 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex items-center">
             <div className="p-8 max-w-xl">
               <h1 className="text-4xl font-bold text-white mb-4">{category.name}</h1>
-              <p className="text-white/90">
-                {category.description || `Découvrez notre sélection de ${category.name.toLowerCase()} de qualité.`}
-              </p>
+              <p className="text-white/90">{category.description || `Découvrez notre sélection de ${category.name.toLowerCase()}`}</p>
               {category.product_count > 0 && (
                 <p className="text-white/80 mt-2">{category.product_count} produits disponibles</p>
               )}
@@ -272,46 +205,11 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
           </div>
         </div>
 
-        {/* Filters and Sorting */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="flex items-center">
-            <Button variant="outline" className="flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              Filtrer
-            </Button>
-
-            <div className="ml-4 flex items-center gap-4">
-              <Badge variant="outline" className="cursor-pointer hover:bg-primary/10">
-                Nouveautés
-              </Badge>
-              <Badge variant="outline" className="cursor-pointer hover:bg-primary/10">
-                Promotions
-              </Badge>
-              <Badge variant="outline" className="cursor-pointer hover:bg-primary/10">
-                Bio
-              </Badge>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Trier par:</span>
-            <select className="border rounded-md p-2 text-sm">
-              <option>Popularité</option>
-              <option>Prix: croissant</option>
-              <option>Prix: décroissant</option>
-              <option>Nouveautés</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Products Grid */}
+        {/* Products */}
         {products.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-12">
             {products.map((product) => (
-              <Card
-                key={product.id}
-                className="overflow-hidden group border-none shadow-md hover:shadow-lg transition-all duration-300"
-              >
+              <Card key={product.id} className="overflow-hidden group border-none shadow-md hover:shadow-lg transition-all duration-300">
                 <CardContent className="p-0 relative">
                   <Link href={`/produits/${product.id}`}>
                     <div className="aspect-square relative overflow-hidden">
@@ -321,14 +219,12 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                       />
-
                       {/* Badges */}
                       <div className="absolute top-2 left-2 flex flex-col gap-2">
                         {product.is_new && <Badge className="bg-green-500 hover:bg-green-600">Nouveau</Badge>}
                         {product.is_on_sale && <Badge className="bg-primary hover:bg-primary/90">Promo</Badge>}
                       </div>
-
-                      {/* Favorite Button */}
+                      {/* Favorite */}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -349,25 +245,19 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
                       </Button>
                     </div>
                   </Link>
-
                   <div className="p-4">
-                    <div className="text-sm text-muted-foreground mb-1">
-                      {product.category?.name || "Produits"}
-                    </div>
+                    <div className="text-sm text-muted-foreground mb-1">{product.category?.name || "Produits"}</div>
                     <Link href={`/produits/${product.id}`} className="hover:underline">
                       <h3 className="font-semibold text-lg mb-2 line-clamp-2">{product.name}</h3>
                     </Link>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-lg">{formatPrice(product.price)} FCFA</span>
                       {product.old_price && (
-                        <span className="text-muted-foreground line-through text-sm">
-                          {formatPrice(product.old_price)} FCFA
-                        </span>
+                        <span className="text-muted-foreground line-through text-sm">{formatPrice(product.old_price)} FCFA</span>
                       )}
                     </div>
                   </div>
                 </CardContent>
-
                 <CardFooter className="p-4 pt-0">
                   <Button
                     className="w-full gap-2 bg-primary hover:bg-primary/90"
@@ -384,25 +274,6 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
         ) : (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Aucun produit disponible dans cette catégorie pour le moment.</p>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {products.length > 0 && (
-          <div className="flex justify-center">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" disabled>
-                &lt;
-              </Button>
-              <Button variant="outline" className="bg-primary text-white">
-                1
-              </Button>
-              <Button variant="outline">2</Button>
-              <Button variant="outline">3</Button>
-              <Button variant="outline" size="icon">
-                &gt;
-              </Button>
-            </div>
           </div>
         )}
       </div>
