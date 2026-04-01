@@ -41,7 +41,7 @@ export default function CartPage() {
 
   // États panier
   const [isLoading, setIsLoading] = useState(true)
-
+  const [deliveryMethod, setDeliveryMethod] = useState<"delivery" | "no_delivery">("delivery")
   // États coupon
   const [couponCode, setCouponCode] = useState("")
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
@@ -50,7 +50,8 @@ export default function CartPage() {
   const [couponSuccess, setCouponSuccess] = useState<string | null>(null)
 
   // Calculs
-  const shipping = 2500
+  const baseShipping = 2500
+  const shipping = deliveryMethod === "no_delivery" ? 0 : baseShipping
   const discountAmount = appliedCoupon?.pricing.discount_amount ?? 0
   const total = subtotal + shipping - discountAmount
 
@@ -346,12 +347,34 @@ export default function CartPage() {
                   <span className="text-muted-foreground">Sous-total</span>
                   <span className="font-medium">{subtotal.toLocaleString()} FCFA</span>
                 </div>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={deliveryMethod === "delivery"}
+                      onChange={() => setDeliveryMethod("delivery")}
+                    />
+                    Avec livraison
+                  </label>
 
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={deliveryMethod === "no_delivery"}
+                      onChange={() => setDeliveryMethod("no_delivery")}
+                    />
+                    Sans livraison (gratuit)
+                  </label>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Frais de livraison</span>
                   <span className="font-medium">{shipping.toLocaleString()} FCFA</span>
                 </div>
-
+                {deliveryMethod === "no_delivery" && (
+                  <p className="text-green-600 text-xs">
+                    ✔ Aucun frais de livraison appliqué
+                  </p>
+                )}
                 {appliedCoupon && (
                   <div className="flex justify-between items-center text-green-600">
                     <span className="flex items-center gap-1">
