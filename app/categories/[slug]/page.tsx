@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, notFound, useRouter } from "next/navigation"
+import { usePathname, notFound, useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -44,13 +44,18 @@ interface Product {
 }
 
 export default function CategoryPage() {
-  const params = useParams()
+  const pathname = usePathname()
   const router = useRouter()
-  // Next.js extrait automatiquement le slug de l'URL /categories/[slug]
-  const slug = params?.slug as string
+  
+  // ✅ Extraction du slug avec REGEX
+  // Pattern: /categories/ n'importe quel caractère (sauf /) jusqu'à la fin
+  const regex = /\/categories\/([^\/?#]+)/
+  const match = pathname?.match(regex)
+  const slug = match ? match[1] : null
 
   const [category, setCategory] = useState<Category | null>(null)
   const [products, setProducts] = useState<Product[]>([])
+  const [allCategories, setAllCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [loadingProductId, setLoadingProductId] = useState<number | null>(null)
@@ -59,6 +64,33 @@ export default function CategoryPage() {
   const { addItem } = useCart()
   const { addItem: addToFavorites, removeItem: removeFromFavorites, isFavorite } = useFavorites()
   const { user } = useAuth()
+
+  // Charger toutes les catégories une fois
+  useEffect(() => {
+    const fetchAllCategories = async () => {
+      try {
+        const res = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/categories")
+        if (res.ok) {
+          const data = await res.json()
+          let categoriesArray: Category[] = []
+          
+          if (Array.isArray(data)) {
+            categoriesArray = data
+          } else if (data.success && Array.isArray(data.data)) {
+            categoriesArray = data.data
+          } else if (data.categories && Array.isArray(data.categories)) {
+            categoriesArray = data.categories
+          }
+          
+          setAllCategories(categoriesArray)
+        }
+      } catch (err) {
+        console.error("Erreur chargement catégories:", err)
+      }
+    }
+    
+    fetchAllCategories()
+  }, [])
 
   useEffect(() => {
     if (!slug) {
@@ -71,33 +103,53 @@ export default function CategoryPage() {
         setLoading(true)
         setError(null)
 
-        // Tentative 1: Récupérer par slug via l'API
-        let res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${slug}`)
+        // Décoder le slug (pour gérer les espaces, accents, etc.)
+        const decodedSlug = decodeURIComponent(slug)
         
-        // Si le slug ne fonctionne pas, essayer de récupérer toutes les catégories et trouver par nom
-        if (!res.ok && res.status === 404) {
-          console.log("Catégorie non trouvée par slug, recherche par nom...")
-          const allCategoriesRes = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/categories")
+        // 1. Essayer de trouver la catégorie par son slug ou son nom dans la liste déjà chargée
+        let foundCategory = allCategories.find(
+          cat => cat.slug?.toLowerCase() === decodedSlug.toLowerCase() ||
+                 cat.name?.toLowerCase() === decodedSlug.toLowerCase()
+        )
+        
+        let res
+        
+        if (foundCategory) {
+          // Si trouvée, récupérer par ID
+          res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${foundCategory.id}`)
+        } else {
+          // Sinon, essayer directement par slug
+          res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${decodedSlug}`)
           
-          if (allCategoriesRes.ok) {
-            const categoriesData = await allCategoriesRes.json()
-            // Chercher une catégorie dont le nom correspond (insensible à la casse)
-            const foundCategory = categoriesData.find(
-              (cat: any) => cat.name.toLowerCase() === slug.toLowerCase()
-            )
+          // Si toujours pas trouvé, essayer avec une regex sur le nom
+          if (!res.ok && res.status === 404 && allCategories.length > 0) {
+            // Nettoyer le slug pour la recherche (enlever accents, mettre en minuscule)
+            const cleanSlug = decodedSlug
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/[^a-z0-9]/g, '')
+            
+            foundCategory = allCategories.find(cat => {
+              const cleanName = cat.name
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]/g, '')
+              return cleanName === cleanSlug
+            })
             
             if (foundCategory) {
-              // Re-fetch avec l'ID trouvé
               res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${foundCategory.id}`)
             }
           }
         }
 
-        if (!res.ok) {
-          if (res.status === 404) {
+        if (!res || !res.ok) {
+          if (res?.status === 404) {
             notFound()
           }
-          throw new Error(`HTTP error ${res.status}`)
+          throw new Error(`HTTP error ${res?.status}`)
         }
 
         const data = await res.json()
@@ -116,8 +168,10 @@ export default function CategoryPage() {
       }
     }
 
-    fetchCategoryAndProducts()
-  }, [slug, router])
+    if (allCategories.length > 0 || slug) {
+      fetchCategoryAndProducts()
+    }
+  }, [slug, router, allCategories])
 
   const handleAddToCart = async (product: Product) => {
     setLoadingProductId(product.id)
@@ -227,7 +281,7 @@ export default function CategoryPage() {
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-2xl font-bold mb-4">Catégorie introuvable</h1>
           <p className="text-muted-foreground mb-6">
-            {error || "La catégorie que vous recherchez n'existe pas."}
+            {error || `La catégorie "${slug}" que vous recherchez n'existe pas.`}
           </p>
           <Button onClick={() => router.push("/categories")}>
             Voir toutes les catégories
