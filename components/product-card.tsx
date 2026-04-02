@@ -33,7 +33,6 @@ export default function ProductCard({ product }: ProductCardProps) {
   const { addItem: addToFavorites, removeItem: removeFromFavorites, isFavorite } = useFavorites()
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
-  const [imageError, setImageError] = useState(false)
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -173,35 +172,24 @@ export default function ProductCard({ product }: ProductCardProps) {
   }
 
   const productPath = product.specialPath || `/produits/${product.id}`
-  
-  // CORRECTION: Gestion correcte du prix
-  const displayPrice = product.price.toLocaleString()
-  const displayOldPrice = product.oldPrice ? product.oldPrice.toLocaleString() : null
-  
-  // CORRECTION: Gestion de l'image avec fallback
-  const getImageUrl = () => {
-    if (imageError) return "/images/placeholder.png"
-    if (product.image && product.image.trim() !== "") return product.image
-    return "/images/placeholder.png"
-  }
+  const displayPrice = product.id < 100 ? (product.price / 100).toLocaleString() : product.price
+  const displayOldPrice = product.oldPrice
+    ? product.id < 100
+      ? (product.oldPrice / 100).toLocaleString()
+      : product.oldPrice
+    : null
 
   return (
     <Card className="overflow-hidden group border-none shadow-md hover:shadow-lg transition-all duration-300">
       <CardContent className="p-0 relative">
         <Link href={productPath}>
-          <div className="aspect-square relative overflow-hidden bg-gray-100">
-            {getImageUrl() ? (
-              <img
-                src={getImageUrl()}
-                alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <ShoppingCart className="h-12 w-12 text-gray-300" />
-              </div>
-            )}
+          <div className="aspect-square relative overflow-hidden">
+            <Image
+              src={product.image || "/placeholder.svg"}
+              alt={product.name}
+              fill
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+            />
 
             {/* Badges */}
             <div className="absolute top-2 left-2 flex flex-col gap-2">
@@ -250,4 +238,4 @@ export default function ProductCard({ product }: ProductCardProps) {
       </CardFooter>
     </Card>
   )
-}
+} 
