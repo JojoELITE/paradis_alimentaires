@@ -118,12 +118,35 @@ export default function Navbar() {
             <Image src="/images/logo.png" alt="Paradis Alimentaire" fill className="object-contain" priority />
           </Link>
 
-          {/* Mobile Menu Button */}
-          <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsOpen(!isOpen)}>
-            <Menu className="h-6 w-6" />
-          </Button>
+          {/* ACTIONS MOBILES - AJOUT DES ICONES ICI */}
+          <div className="flex items-center gap-3 md:hidden">
+            {/* Icône Favoris */}
+            <Link href="/favoris" className="relative">
+              <Heart className="h-5 w-5 text-gray-700" />
+              {totalFavorites > 0 && (
+                <span className="absolute -top-2 -right-2 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                  {totalFavorites}
+                </span>
+              )}
+            </Link>
 
-          {/* Search */}
+            {/* Icône Panier */}
+            <Link href="/panier" className="relative">
+              <ShoppingCart className="h-5 w-5 text-gray-700" />
+              {totalItems > 0 && (
+                <span className="absolute -top-2 -right-2 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                  {totalItems}
+                </span>
+              )}
+            </Link>
+
+            {/* Bouton Menu */}
+            <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)}>
+              <Menu className="h-6 w-6" />
+            </Button>
+          </div>
+
+          {/* Search Desktop */}
           <form onSubmit={handleSearch} className="hidden md:flex items-center flex-1 max-w-xl mx-4">
             <div className="relative w-full flex">
               <div className="border border-r-0 border-gray-300 rounded-l-md px-3 py-2 flex items-center">
@@ -236,10 +259,10 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Main Navigation */}
-      <div className="bg-gray-100 border-b border-gray-200">
+      {/* Main Navigation Desktop */}
+      <div className="bg-gray-100 border-b border-gray-200 hidden md:block">
         <div className="container mx-auto px-4 flex items-center h-12 justify-between">
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="flex items-center space-x-8">
             {routes.map((route) =>
               route.submenu ? (
                 <DropdownMenu key={route.path}>
@@ -289,8 +312,8 @@ export default function Navbar() {
             )}
           </nav>
 
-          {/* Right Side Links */}
-          <div className="hidden md:flex items-center space-x-6">
+          {/* Right Side Links Desktop */}
+          <div className="flex items-center space-x-6">
             <Link href="/moyens-de-paiement" className="text-sm text-gray-800 hover:text-primary">
               Moyen de Paiement
             </Link>
@@ -313,35 +336,9 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu - CORRECTION ICI */}
+      {/* Mobile Menu */}
       {isOpen && (
         <div className="md:hidden absolute top-full left-0 right-0 bg-white shadow-lg py-4 px-4 z-50 max-h-[80vh] overflow-y-auto">
-          {/* AJOUT : Icônes Panier et Favoris sur mobile */}
-          <div className="flex items-center justify-around mb-6 pb-4 border-b border-gray-200">
-            <Link href="/favoris" className="flex flex-col items-center gap-1" onClick={() => setIsOpen(false)}>
-              <div className="relative">
-                <Heart className="h-6 w-6 text-gray-700" />
-                {totalFavorites > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {totalFavorites}
-                  </span>
-                )}
-              </div>
-              <span className="text-xs text-gray-600">Favoris</span>
-            </Link>
-            <Link href="/panier" className="flex flex-col items-center gap-1" onClick={() => setIsOpen(false)}>
-              <div className="relative">
-                <ShoppingCart className="h-6 w-6 text-gray-700" />
-                {totalItems > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {totalItems}
-                  </span>
-                )}
-              </div>
-              <span className="text-xs text-gray-600">Panier</span>
-            </Link>
-          </div>
-
           <form onSubmit={handleSearch} className="relative mb-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
@@ -383,7 +380,7 @@ export default function Navbar() {
                   <Link
                     href={route.path}
                     className={cn(
-                      "text-base font-medium py-2 transition-colors hover:text-primary",
+                      "text-base font-medium py-2 transition-colors hover:text-primary block",
                       pathname === route.path ? "text-primary font-semibold" : "text-gray-800"
                     )}
                     onClick={() => setIsOpen(false)}
@@ -394,18 +391,21 @@ export default function Navbar() {
               </div>
             ))}
 
-            {/* Mobile User & Links - CORRECTION ICI */}
+            {/* Mobile User & Links - CORRECTION : AFFICHAGE SELON LE RÔLE */}
             <div className="pt-4 border-t border-gray-200">
               {user ? (
                 <>
-                  <div className="py-2">
+                  <div className="py-2 mb-2">
                     <p className="text-gray-800 font-medium">{user.full_name || user.email}</p>
                     <p className="text-xs text-gray-500">
                       {user.role === "admin" && "Administrateur"}
                       {user.role === "superadmin" && "Super Administrateur"}
                       {user.role === "marchant" && "Marchand"}
+                      {!user.role && "Client"}
                     </p>
                   </div>
+                  
+                  {/* TOUJOURS visible pour tout utilisateur connecté */}
                   <Link href="/profil" className="block py-2 text-gray-800 hover:text-primary" onClick={() => setIsOpen(false)}>
                     Mon profil
                   </Link>
@@ -415,12 +415,15 @@ export default function Navbar() {
                   <Link href="/favoris" className="block py-2 text-gray-800 hover:text-primary" onClick={() => setIsOpen(false)}>
                     Mes favoris
                   </Link>
+                  
+                  {/* Dashboard UNIQUEMENT pour admin, superadmin ou marchant */}
                   {(user.role === "admin" || user.role === "superadmin" || user.role === "marchant") && (
                     <Link href="/dashboard" className="block py-2 text-primary font-medium" onClick={() => setIsOpen(false)}>
                       Mon dashboard
                     </Link>
                   )}
-                  <button onClick={handleLogout} className="block py-2 text-red-600 hover:text-red-700 w-full text-left">
+                  
+                  <button onClick={handleLogout} className="block py-2 text-red-600 hover:text-red-700 w-full text-left mt-2">
                     Déconnexion
                   </button>
                 </>
@@ -434,6 +437,7 @@ export default function Navbar() {
                   </Link>
                 </>
               )}
+              
               <Link href="/moyens-de-paiement" className="block py-2 text-gray-800 hover:text-primary" onClick={() => setIsOpen(false)}>
                 Moyens de Paiement
               </Link>
@@ -445,9 +449,9 @@ export default function Navbar() {
                 <span className="text-gray-800">Devise:</span>
                 <span className="text-gray-800">FCFA</span>
               </div>
-              <div className="py-2 flex justify-between items-center">
+              <div className="py-2 flex justify-between">
                 <span className="text-gray-800">Langue:</span>
-                <LanguageSelector />
+                <span className="text-gray-800">Français</span>
               </div>
 
               <div className="py-2 flex space-x-4 justify-center mt-2">
