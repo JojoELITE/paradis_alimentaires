@@ -86,7 +86,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-
+    
     setIsLoading(true)
 
     // Si l'utilisateur n'est pas connecté, utiliser le localStorage
@@ -117,15 +117,15 @@ export default function ProductCard({ product }: ProductCardProps) {
     // Si l'utilisateur est connecté, utiliser l'API
     try {
       const isFav = isFavorite(product.id)
-      const url = isFav
+      const url = isFav 
         ? "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/remove"
         : "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/add"
-
+      
       const requestBody = {
         userId: user.id,
         productId: product.id,
       }
-
+      
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -205,12 +205,12 @@ export default function ProductCard({ product }: ProductCardProps) {
               onClick={handleToggleFavorite}
               disabled={isLoading}
             >
-              <Heart
+              <Heart 
                 className={cn(
                   "h-5 w-5 transition-all",
                   isFavorite(product.id) ? "fill-primary text-primary" : "",
                   isLoading && "animate-pulse"
-                )}
+                )} 
               />
             </Button>
           </div>
@@ -238,4 +238,4 @@ export default function ProductCard({ product }: ProductCardProps) {
       </CardFooter>
     </Card>
   )
-} 
+}
