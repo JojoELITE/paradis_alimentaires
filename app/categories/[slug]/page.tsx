@@ -1,13 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, notFound } from "next/navigation"
+import { useParams, notFound, useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Heart, Filter } from "lucide-react"
+import { ShoppingCart, Heart, Filter, ArrowLeft } from "lucide-react"
 import { useCart } from "@/hooks/use-cart"
 import { useFavorites } from "@/hooks/use-favorites"
 import { useAuth } from "@/hooks/use-auth"
@@ -45,7 +45,9 @@ interface Product {
 
 export default function CategoryPage() {
   const params = useParams()
-  const slug = params?.slug
+  const router = useRouter()
+  // Next.js extrait automatiquement le slug de l'URL /categories/[slug]
+  const slug = params?.slug as string
 
   const [category, setCategory] = useState<Category | null>(null)
   const [products, setProducts] = useState<Product[]>([])
@@ -59,15 +61,42 @@ export default function CategoryPage() {
   const { user } = useAuth()
 
   useEffect(() => {
-    if (!slug) return
+    if (!slug) {
+      router.push("/categories")
+      return
+    }
 
     const fetchCategoryAndProducts = async () => {
       try {
         setLoading(true)
+        setError(null)
 
-        const res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${slug}`)
+        // Tentative 1: Récupérer par slug via l'API
+        let res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${slug}`)
+        
+        // Si le slug ne fonctionne pas, essayer de récupérer toutes les catégories et trouver par nom
+        if (!res.ok && res.status === 404) {
+          console.log("Catégorie non trouvée par slug, recherche par nom...")
+          const allCategoriesRes = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/categories")
+          
+          if (allCategoriesRes.ok) {
+            const categoriesData = await allCategoriesRes.json()
+            // Chercher une catégorie dont le nom correspond (insensible à la casse)
+            const foundCategory = categoriesData.find(
+              (cat: any) => cat.name.toLowerCase() === slug.toLowerCase()
+            )
+            
+            if (foundCategory) {
+              // Re-fetch avec l'ID trouvé
+              res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${foundCategory.id}`)
+            }
+          }
+        }
+
         if (!res.ok) {
-          if (res.status === 404) notFound()
+          if (res.status === 404) {
+            notFound()
+          }
           throw new Error(`HTTP error ${res.status}`)
         }
 
@@ -80,7 +109,7 @@ export default function CategoryPage() {
           throw new Error(data.message || "Impossible de récupérer la catégorie")
         }
       } catch (err) {
-        console.error(err)
+        console.error("Erreur:", err)
         setError(err instanceof Error ? err.message : "Erreur inconnue")
       } finally {
         setLoading(false)
@@ -88,7 +117,7 @@ export default function CategoryPage() {
     }
 
     fetchCategoryAndProducts()
-  }, [slug])
+  }, [slug, router])
 
   const handleAddToCart = async (product: Product) => {
     setLoadingProductId(product.id)
@@ -180,24 +209,65 @@ export default function CategoryPage() {
 
   const formatPrice = (price: number) => price.toLocaleString()
 
-  if (loading) return <div className="p-8">Chargement...</div>
-  if (error || !category) notFound()
+  if (loading) {
+    return (
+      <main className="flex min-h-screen flex-col pt-32 pb-16">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  if (error || !category) {
+    return (
+      <main className="flex min-h-screen flex-col pt-32 pb-16">
+        <div className="container mx-auto px-4 text-center">
+          <h1 className="text-2xl font-bold mb-4">Catégorie introuvable</h1>
+          <p className="text-muted-foreground mb-6">
+            {error || "La catégorie que vous recherchez n'existe pas."}
+          </p>
+          <Button onClick={() => router.push("/categories")}>
+            Voir toutes les catégories
+          </Button>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="flex min-h-screen flex-col pt-32 pb-16">
       <div className="container mx-auto px-4">
+        {/* Bouton retour */}
+        <Button 
+          variant="ghost" 
+          className="mb-4 gap-2"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour
+        </Button>
+
         {/* Hero */}
         <div className="relative h-[300px] rounded-lg overflow-hidden mb-12">
           <Image
-            src={category.image_url || "/images/placeholder.png"}
+            src={category.image_url || "/images/placeholder-category.jpg"}
             alt={category.name}
             fill
             className="object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement
+              target.src = "/images/placeholder-category.jpg"
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex items-center">
             <div className="p-8 max-w-xl">
               <h1 className="text-4xl font-bold text-white mb-4">{category.name}</h1>
-              <p className="text-white/90">{category.description || `Découvrez notre sélection de ${category.name.toLowerCase()}`}</p>
+              <p className="text-white/90">
+                {category.description || `Découvrez notre sélection de ${category.name.toLowerCase()}`}
+              </p>
               {category.product_count > 0 && (
                 <p className="text-white/80 mt-2">{category.product_count} produits disponibles</p>
               )}
@@ -218,6 +288,10 @@ export default function CategoryPage() {
                         alt={product.name}
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = "/images/placeholder.png"
+                        }}
                       />
                       {/* Badges */}
                       <div className="absolute top-2 left-2 flex flex-col gap-2">
@@ -274,6 +348,9 @@ export default function CategoryPage() {
         ) : (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Aucun produit disponible dans cette catégorie pour le moment.</p>
+            <Button className="mt-4" onClick={() => router.push("/")}>
+              Continuer vos achats
+            </Button>
           </div>
         )}
       </div>
