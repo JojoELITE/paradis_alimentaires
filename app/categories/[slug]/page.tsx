@@ -1,13 +1,15 @@
+// app/categories/[slug]/page.tsx
+
 "use client"
 
 import { useEffect, useState } from "react"
-import { usePathname, notFound, useRouter } from "next/navigation"
+import { notFound, useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Heart, Filter, ArrowLeft } from "lucide-react"
+import { ShoppingCart, Heart, ArrowLeft } from "lucide-react"
 import { useCart } from "@/hooks/use-cart"
 import { useFavorites } from "@/hooks/use-favorites"
 import { useAuth } from "@/hooks/use-auth"
@@ -43,19 +45,19 @@ interface Product {
   description?: string
 }
 
-export default function CategoryPage() {
-  const pathname = usePathname()
-  const router = useRouter()
-  
-  // ✅ Extraction du slug avec REGEX
-  // Pattern: /categories/ n'importe quel caractère (sauf /) jusqu'à la fin
-  const regex = /\/categories\/([^\/?#]+)/
-  const match = pathname?.match(regex)
-  const slug = match ? match[1] : null
+// Page dynamique - Next.js passe automatiquement les params
+interface PageProps {
+  params: {
+    slug: string
+  }
+}
 
+export default function CategoryPage({ params }: PageProps) {
+  const router = useRouter()
+  const { slug } = params  // ← Next.js donne directement le slug
+  
   const [category, setCategory] = useState<Category | null>(null)
   const [products, setProducts] = useState<Product[]>([])
-  const [allCategories, setAllCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [loadingProductId, setLoadingProductId] = useState<number | null>(null)
@@ -64,33 +66,6 @@ export default function CategoryPage() {
   const { addItem } = useCart()
   const { addItem: addToFavorites, removeItem: removeFromFavorites, isFavorite } = useFavorites()
   const { user } = useAuth()
-
-  // Charger toutes les catégories une fois
-  useEffect(() => {
-    const fetchAllCategories = async () => {
-      try {
-        const res = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/categories")
-        if (res.ok) {
-          const data = await res.json()
-          let categoriesArray: Category[] = []
-          
-          if (Array.isArray(data)) {
-            categoriesArray = data
-          } else if (data.success && Array.isArray(data.data)) {
-            categoriesArray = data.data
-          } else if (data.categories && Array.isArray(data.categories)) {
-            categoriesArray = data.categories
-          }
-          
-          setAllCategories(categoriesArray)
-        }
-      } catch (err) {
-        console.error("Erreur chargement catégories:", err)
-      }
-    }
-    
-    fetchAllCategories()
-  }, [])
 
   useEffect(() => {
     if (!slug) {
@@ -103,53 +78,47 @@ export default function CategoryPage() {
         setLoading(true)
         setError(null)
 
-        // Décoder le slug (pour gérer les espaces, accents, etc.)
-        const decodedSlug = decodeURIComponent(slug)
+        // Essayer d'abord avec le slug
+        let res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${slug}`)
         
-        // 1. Essayer de trouver la catégorie par son slug ou son nom dans la liste déjà chargée
-        let foundCategory = allCategories.find(
-          cat => cat.slug?.toLowerCase() === decodedSlug.toLowerCase() ||
-                 cat.name?.toLowerCase() === decodedSlug.toLowerCase()
-        )
-        
-        let res
-        
-        if (foundCategory) {
-          // Si trouvée, récupérer par ID
-          res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${foundCategory.id}`)
-        } else {
-          // Sinon, essayer directement par slug
-          res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${decodedSlug}`)
+        // Si pas trouvé, essayer de chercher par nom
+        if (!res.ok && res.status === 404) {
+          console.log("Recherche par nom:", slug)
           
-          // Si toujours pas trouvé, essayer avec une regex sur le nom
-          if (!res.ok && res.status === 404 && allCategories.length > 0) {
-            // Nettoyer le slug pour la recherche (enlever accents, mettre en minuscule)
-            const cleanSlug = decodedSlug
-              .toLowerCase()
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .replace(/[^a-z0-9]/g, '')
+          // Récupérer toutes les catégories
+          const allRes = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/categories")
+          
+          if (allRes.ok) {
+            const data = await allRes.json()
+            let categoriesArray: any[] = []
             
-            foundCategory = allCategories.find(cat => {
-              const cleanName = cat.name
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9]/g, '')
-              return cleanName === cleanSlug
-            })
+            // Gérer les différents formats de réponse
+            if (Array.isArray(data)) {
+              categoriesArray = data
+            } else if (data.success && Array.isArray(data.data)) {
+              categoriesArray = data.data
+            } else if (data.categories && Array.isArray(data.categories)) {
+              categoriesArray = data.categories
+            } else if (data.data && Array.isArray(data.data)) {
+              categoriesArray = data.data
+            }
             
-            if (foundCategory) {
-              res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${foundCategory.id}`)
+            // Chercher par nom (insensible à la casse)
+            const found = categoriesArray.find(
+              (cat: any) => cat.name?.toLowerCase() === slug.toLowerCase()
+            )
+            
+            if (found) {
+              res = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/categories/${found.id}`)
             }
           }
         }
 
-        if (!res || !res.ok) {
-          if (res?.status === 404) {
-            notFound()
+        if (!res.ok) {
+          if (res.status === 404) {
+            notFound()  ← Déclenche la page 404
           }
-          throw new Error(`HTTP error ${res?.status}`)
+          throw new Error(`Erreur HTTP: ${res.status}`)
         }
 
         const data = await res.json()
@@ -168,10 +137,8 @@ export default function CategoryPage() {
       }
     }
 
-    if (allCategories.length > 0 || slug) {
-      fetchCategoryAndProducts()
-    }
-  }, [slug, router, allCategories])
+    fetchCategoryAndProducts()
+  }, [slug, router])
 
   const handleAddToCart = async (product: Product) => {
     setLoadingProductId(product.id)
@@ -281,7 +248,7 @@ export default function CategoryPage() {
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-2xl font-bold mb-4">Catégorie introuvable</h1>
           <p className="text-muted-foreground mb-6">
-            {error || `La catégorie "${slug}" que vous recherchez n'existe pas.`}
+            {error || `La catégorie "${slug}" n'existe pas.`}
           </p>
           <Button onClick={() => router.push("/categories")}>
             Voir toutes les catégories
@@ -294,7 +261,6 @@ export default function CategoryPage() {
   return (
     <main className="flex min-h-screen flex-col pt-32 pb-16">
       <div className="container mx-auto px-4">
-        {/* Bouton retour */}
         <Button 
           variant="ghost" 
           className="mb-4 gap-2"
@@ -304,7 +270,6 @@ export default function CategoryPage() {
           Retour
         </Button>
 
-        {/* Hero */}
         <div className="relative h-[300px] rounded-lg overflow-hidden mb-12">
           <Image
             src={category.image_url || "/images/placeholder-category.jpg"}
@@ -329,7 +294,6 @@ export default function CategoryPage() {
           </div>
         </div>
 
-        {/* Products */}
         {products.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-12">
             {products.map((product) => (
@@ -347,12 +311,10 @@ export default function CategoryPage() {
                           target.src = "/images/placeholder.png"
                         }}
                       />
-                      {/* Badges */}
                       <div className="absolute top-2 left-2 flex flex-col gap-2">
                         {product.is_new && <Badge className="bg-green-500 hover:bg-green-600">Nouveau</Badge>}
                         {product.is_on_sale && <Badge className="bg-primary hover:bg-primary/90">Promo</Badge>}
                       </div>
-                      {/* Favorite */}
                       <Button
                         variant="ghost"
                         size="icon"
