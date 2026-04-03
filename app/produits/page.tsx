@@ -447,32 +447,7 @@ export default function AllProductsPage() {
         )}
 
         {/* Statistiques */}
-        {products.length > 0 && (
-          <div className="mt-12 p-4 bg-gray-50 rounded-lg">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold text-primary">{products.length}</p>
-                <p className="text-sm text-muted-foreground">Produits</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-primary">{categories.length}</p>
-                <p className="text-sm text-muted-foreground">Catégories</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-primary">
-                  {products.filter(p => p.stock > 0).length}
-                </p>
-                <p className="text-sm text-muted-foreground">En stock</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-primary">
-                  {products.filter(p => p.isNew).length}
-                </p>
-                <p className="text-sm text-muted-foreground">Nouveautés</p>
-              </div>
-            </div>
-          </div>
-        )}
+       
       </div>
     </main>
   )
