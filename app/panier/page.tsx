@@ -34,6 +34,17 @@ interface AppliedCoupon {
   }
 }
 
+// ─── Fonction pour obtenir l'URL de l'image ───────────────────────────────────
+const getImageUrl = (item: any) => {
+  // Vérifier les différentes propriétés possibles pour l'image
+  const url = item?.image || item?.imageUrl || item?.image_url || item?.product?.image || item?.product?.imageUrl
+  
+  if (url && url.startsWith('http')) {
+    return url
+  }
+  return "/placeholder.png"
+}
+
 // ─── Composant principal ───────────────────────────────────────────────────────
 export default function CartPage() {
   const { items, removeItem, updateQuantity, subtotal, clearCart, setItems } = useCart()
@@ -67,16 +78,27 @@ export default function CartPage() {
       try {
         const response = await fetch(`${API_BASE}/cart/${user.id}`)
         const data = await response.json()
+        console.log("🛒 Panier reçu:", data)
 
         if (data.success && data.data) {
-          const cartItems = data.data.items.map((item: any) => ({
-            id: item.product_id,
-            name: item.product?.name || "Produit",
-            price: item.product?.price || 0,
-            quantity: item.quantity,
-            image: item.product?.image || "/placeholder.svg",
-            category: item.product?.category || "Produit",
-          }))
+          const cartItems = data.data.items.map((item: any) => {
+            // Récupérer l'URL de l'image depuis différentes sources
+            const productImage = item.product?.imageUrl || 
+                                item.product?.image_url || 
+                                item.product?.image || 
+                                "/placeholder.png"
+            
+            console.log(`📦 Produit ${item.product?.name}:`, productImage)
+            
+            return {
+              id: item.product_id,
+              name: item.product?.name || "Produit",
+              price: typeof item.product?.price === 'string' ? parseFloat(item.product.price) : (item.product?.price || 0),
+              quantity: item.quantity,
+              image: productImage,
+              category: item.product?.category || "Produit",
+            }
+          })
           setItems(cartItems)
         }
       } catch (error) {
@@ -252,67 +274,75 @@ export default function CartPage() {
               </div>
 
               <div className="divide-y divide-gray-200">
-                {items.map((item) => (
-                  <div key={item.id} className="p-6 flex flex-col sm:flex-row gap-4">
-                    <div className="relative h-24 w-24 flex-shrink-0 rounded-md overflow-hidden">
-                      <Image
-                        src={item.image || "/placeholder.svg"}
-                        alt={item.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="flex flex-col sm:flex-row sm:justify-between">
-                        <div>
-                          <h3 className="text-lg font-medium">{item.name}</h3>
-                          <p className="text-sm text-muted-foreground">{item.category}</p>
-                        </div>
-                        <div className="mt-2 sm:mt-0 text-right">
-                          <div className="text-lg font-semibold">
-                            {(item.price * item.quantity).toLocaleString()} FCFA
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {item.quantity} × {item.price.toLocaleString()} FCFA
-                          </div>
-                        </div>
+                {items.map((item) => {
+                  const imageUrl = getImageUrl(item)
+                  return (
+                    <div key={item.id} className="p-6 flex flex-col sm:flex-row gap-4">
+                      {/* Image du produit */}
+                      <div className="relative h-24 w-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
+                        <Image
+                          src={imageUrl}
+                          alt={item.name}
+                          fill
+                          className="object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = "/placeholder.png";
+                          }}
+                        />
                       </div>
 
-                      <div className="mt-4 flex justify-between items-center">
-                        <div className="flex items-center border border-gray-300 rounded-md">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-none text-gray-500"
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-10 text-center">{item.quantity}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-none text-gray-500"
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
+                      <div className="flex-1">
+                        <div className="flex flex-col sm:flex-row sm:justify-between">
+                          <div>
+                            <h3 className="text-lg font-medium">{item.name}</h3>
+                            <p className="text-sm text-muted-foreground">{item.category}</p>
+                          </div>
+                          <div className="mt-2 sm:mt-0 text-right">
+                            <div className="text-lg font-semibold">
+                              {(item.price * item.quantity).toLocaleString()} FCFA
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {item.quantity} × {item.price.toLocaleString()} FCFA
+                            </div>
+                          </div>
                         </div>
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => removeItem(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Supprimer
-                        </Button>
+                        <div className="mt-4 flex justify-between items-center">
+                          <div className="flex items-center border border-gray-300 rounded-md">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-none text-gray-500"
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-10 text-center">{item.quantity}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-none text-gray-500"
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => removeItem(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Supprimer
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
 
@@ -437,7 +467,7 @@ export default function CartPage() {
                           placeholder="Code promo"
                           value={couponCode}
                           onChange={(e) => {
-                            setCouponCode(e.target.value) // ← plus de .toUpperCase()
+                            setCouponCode(e.target.value)
                             setCouponError(null)
                           }}
                           onKeyDown={handleCouponKeyDown}
