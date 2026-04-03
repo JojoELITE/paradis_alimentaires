@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Star, Heart, ShoppingCart, Loader2, Filter, Search } from "lucide-react"
+import { Star, Heart, ShoppingCart, Loader2, Search } from "lucide-react"
 import { useCart } from "@/hooks/use-cart"
 import { useFavorites } from "@/hooks/use-favorites"
 import { useAuth } from "@/hooks/use-auth"
@@ -26,18 +26,20 @@ interface Product {
   id: string
   name: string
   description: string | null
-  price: number | string
+  price: number
   stock: number
-  image_url?: string
-  imageUrl?: string
+  imageUrl: string | null
   category: string | null
-  categoryId: string
-  isNew: boolean
-  isOnSale: boolean
+  categoryId: string | null
+  isNew: boolean | null
+  isOnSale: boolean | null
   rating: number
   origin: string | null
   weight: string | null
+  packaging: string | null
+  conservation: string | null
   createdAt: string
+  userId: string
 }
 
 export default function AllProductsPage() {
@@ -57,9 +59,8 @@ export default function AllProductsPage() {
 
   // Fonction pour obtenir l'URL de l'image
   const getImageUrl = (product: Product) => {
-    const url = product?.imageUrl || product?.image_url || product?.image
-    if (url && url.startsWith('http')) {
-      return url
+    if (product.imageUrl && product.imageUrl.startsWith('http')) {
+      return product.imageUrl
     }
     return "/placeholder.png"
   }
@@ -78,20 +79,25 @@ export default function AllProductsPage() {
         const data = await res.json()
         console.log("📦 Tous les produits:", data)
 
-        if (data.success && data.data && data.data.data) {
+        // ✅ CORRECTION IMPORTANTE: la liste est dans data.data directement
+        if (data.success && data.data) {
           // Convertir les prix en nombres
-          const productsData = data.data.data.map((product: any) => {
-            if (typeof product.price === 'string') {
-              product.price = parseFloat(product.price)
-            }
-            return product
-          })
+          const productsData = data.data.map((product: any) => ({
+            ...product,
+            price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
+            imageUrl: product.imageUrl || null,
+            isNew: product.isNew === true,
+            isOnSale: product.isOnSale === true,
+            rating: product.rating || 0
+          }))
+          
           setProducts(productsData)
           
-          // Extraire les catégories uniques
+          // Extraire les catégories uniques (filtrer les null)
           const uniqueCategories = [...new Set(productsData.map((p: Product) => p.category).filter(Boolean))]
           setCategories(uniqueCategories as string[])
         } else {
+          console.error("Structure API inattendue:", data)
           setProducts([])
         }
       } catch (error) {
@@ -113,7 +119,6 @@ export default function AllProductsPage() {
   const handleAddToCart = async (product: Product) => {
     setAddingToCart(product.id)
     
-    const productPrice = typeof product.price === 'string' ? parseFloat(product.price) : product.price
     const userId = user?.id || null
 
     try {
@@ -139,7 +144,7 @@ export default function AllProductsPage() {
       addItem({
         id: product.id,
         name: product.name,
-        price: productPrice,
+        price: product.price,
         image: getImageUrl(product),
         quantity: 1,
         category: product.category || "Produits",
@@ -163,7 +168,6 @@ export default function AllProductsPage() {
   // Ajouter/retirer des favoris
   const handleToggleFavorite = async (product: Product) => {
     const isFav = isFavorite(product.id)
-    const productPrice = typeof product.price === 'string' ? parseFloat(product.price) : product.price
 
     try {
       const res = await fetch(`${API_URL}/favorites/${isFav ? "remove" : "add"}`, {
@@ -192,7 +196,7 @@ export default function AllProductsPage() {
         addToFavorites({
           id: product.id,
           name: product.name,
-          price: productPrice,
+          price: product.price,
           image: getImageUrl(product),
           category: product.category || "Produits",
         })
@@ -221,14 +225,11 @@ export default function AllProductsPage() {
 
   // Trier les produits
   const sortedProducts = [...filteredProducts].sort((a, b) => {
-    const priceA = typeof a.price === 'string' ? parseFloat(a.price) : a.price
-    const priceB = typeof b.price === 'string' ? parseFloat(b.price) : b.price
-    
     switch (sortBy) {
       case "price-asc":
-        return priceA - priceB
+        return a.price - b.price
       case "price-desc":
-        return priceB - priceA
+        return b.price - a.price
       case "newest":
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       case "name-asc":
@@ -325,7 +326,6 @@ export default function AllProductsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {sortedProducts.map((product) => {
-              const productPrice = typeof product.price === 'string' ? parseFloat(product.price) : product.price
               const imageUrl = getImageUrl(product)
               const isFav = isFavorite(product.id)
               
@@ -400,7 +400,7 @@ export default function AllProductsPage() {
                     {/* Prix */}
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xl font-bold text-primary">
-                        {productPrice.toLocaleString()} FCFA
+                        {product.price.toLocaleString()} FCFA
                       </span>
                       {product.stock > 0 && product.stock < 5 && (
                         <span className="text-xs text-orange-500">
