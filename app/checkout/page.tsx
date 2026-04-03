@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ChevronLeft, CreditCard, Truck, Check, MapPin, Phone, Mail, User, MessageCircle, Loader2, QrCode, Globe, Building2, Smartphone, Shield, Clock, Package, Award, X } from "lucide-react"
+import { ChevronLeft, CreditCard, Truck, Check, MapPin, Phone, Mail, User, MessageCircle, Loader2, QrCode, Globe, Building2, Smartphone, Shield, Clock, Package, Award, X, Store } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -47,10 +47,11 @@ const paymentMethods = [
   { id: "qr", name: "QR Code", description: "Payez par QR code", icon: QrCode },
 ]
 
-// --- Modes de livraison ---
+// --- Modes de livraison (avec option retrait en magasin) ---
 const deliveryMethods = [
-  { id: "standard", name: "Standard", price: 2500, description: "Livraison en 3-5 jours ouvrables", icon: Clock, delay: "3-5 jours" },
-  { id: "express", name: "Express", price: 5000, description: "Livraison en 1-2 jours ouvrables", icon: Truck, delay: "1-2 jours" },
+  { id: "pickup", name: "Retrait en magasin", price: 0, description: "Retirez votre commande gratuitement en magasin", icon: Store, delay: "Retrait immédiat" },
+  { id: "standard", name: "Livraison Standard", price: 2500, description: "Livraison à domicile en 3-5 jours", icon: Truck, delay: "3-5 jours" },
+  { id: "express", name: "Livraison Express", price: 5000, description: "Livraison à domicile en 1-2 jours", icon: Clock, delay: "1-2 jours" },
 ]
 
 // --- Composant CardInputs ---
@@ -618,6 +619,9 @@ export default function CheckoutPage() {
   const selectedDelivery = deliveryMethods.find((d) => d.id === deliveryMethod) || deliveryMethods[0]
   const total = subtotal + selectedDelivery.price
 
+  // Vérifier si la livraison est sélectionnée (pour afficher/masquer les champs d'adresse)
+  const isDeliverySelected = deliveryMethod !== "pickup"
+
   useEffect(() => {
     const fetchCountries = async () => {
       try {
@@ -662,7 +666,9 @@ export default function CheckoutPage() {
       toast({ title: "Champ requis", description: "Veuillez saisir votre numéro de téléphone", variant: "destructive" })
       return
     }
-    if (!shippingInfo.address.trim()) {
+    
+    // Vérifier l'adresse seulement si c'est une livraison (pas retrait en magasin)
+    if (isDeliverySelected && !shippingInfo.address.trim()) {
       toast({ title: "Champ requis", description: "Veuillez saisir votre adresse de livraison", variant: "destructive" })
       return
     }
@@ -670,7 +676,6 @@ export default function CheckoutPage() {
     setIsSubmitting(true)
 
     try {
-      // Récupérer l'ID utilisateur
       let userId: string | null = null
       try {
         const storedUser = localStorage.getItem("user")
@@ -682,15 +687,19 @@ export default function CheckoutPage() {
         console.error("Erreur parsing user:", e)
       }
 
-      // Appel à l'API qui gère TOUT (création commande, paiement, vidage panier)
+      // Construire l'adresse de livraison (ou message pour retrait)
+      const deliveryAddress = isDeliverySelected 
+        ? `${shippingInfo.address}, ${shippingInfo.city}`
+        : "Retrait en magasin"
+
       const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userId,
           customerAccountNumber: shippingInfo.phone,
-          shippingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
-          billingAddress: `${shippingInfo.address}, ${shippingInfo.city}`,
+          shippingAddress: deliveryAddress,
+          billingAddress: deliveryAddress,
           deliveryMethod: deliveryMethod,
           deliveryPrice: selectedDelivery.price,
           notes: shippingInfo.notes || null,
@@ -705,9 +714,7 @@ export default function CheckoutPage() {
         setOrderNumber(orderData.data.orderNumber)
         setOrderId(orderData.data.orderNumber)
 
-        // Vérifier le résultat du paiement
         if (orderData.data.payment && orderData.data.payment.success) {
-          // Paiement réussi directement
           if (orderData.data.payment.status === 'success') {
             setIsComplete(true)
             clearCart()
@@ -716,7 +723,6 @@ export default function CheckoutPage() {
               description: `Votre commande #${orderData.data.orderNumber} a été payée avec succès.`,
             })
           } else {
-            // Paiement en attente (Mobile Money)
             setPaymentStatus({
               show: true,
               status: 'pending',
@@ -725,12 +731,10 @@ export default function CheckoutPage() {
             })
           }
         } else if (paymentMethod === "qr") {
-          // QR Code: générer et afficher
           const qrUrl = `https://api-akiba-1.onrender.com/api/mypvit/qr-code/direct/generate?amount=${total}&payment_api_key_public=pk_1773325888803_dt8diavuh3h&payment_api_key_secret=sk_1773325888803_qt015a3cr5`
           setQrCodeUrl(qrUrl)
           setShowQRModal(true)
         } else {
-          // Problème de paiement
           setPaymentStatus({
             show: true,
             status: 'failed',
@@ -769,7 +773,6 @@ export default function CheckoutPage() {
   }
 
   const handlePaymentRetry = () => {
-    // Re-soumettre la commande
     handleSubmit(new Event('submit') as any)
   }
 
@@ -805,6 +808,15 @@ export default function CheckoutPage() {
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-100">
             <p className="text-sm text-muted-foreground mb-2">Numéro de commande</p>
             <p className="text-xl font-bold text-primary font-mono">{orderNumber}</p>
+            {deliveryMethod === "pickup" && (
+              <div className="mt-4 p-3 bg-primary/10 rounded-lg">
+                <Store className="h-5 w-5 text-primary mx-auto mb-2" />
+                <p className="text-sm font-medium">Retrait en magasin</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Vous pouvez retirer votre commande dès maintenant dans notre boutique
+                </p>
+              </div>
+            )}
           </div>
           <div className="space-y-3">
             <Link href="/">
@@ -878,19 +890,37 @@ export default function CheckoutPage() {
                     <Input name="phone" value={shippingInfo.phone} onChange={handleInputChange} placeholder="+225 07 XX XX XX XX" className="h-11" required />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Adresse de livraison</Label>
-                    <Input name="address" value={shippingInfo.address} onChange={handleInputChange} placeholder="Rue des Jardins, Cocody" className="h-11" required />
-                  </div>
+                  {/* Afficher les champs d'adresse uniquement si livraison sélectionnée */}
+                  {isDeliverySelected && (
+                    <>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Adresse de livraison</Label>
+                        <Input name="address" value={shippingInfo.address} onChange={handleInputChange} placeholder="Rue des Jardins, Cocody" className="h-11" required />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Ville</Label>
-                    <Input name="city" value={shippingInfo.city} onChange={handleInputChange} placeholder="Abidjan" className="h-11" required />
-                  </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Ville</Label>
+                        <Input name="city" value={shippingInfo.city} onChange={handleInputChange} placeholder="Abidjan" className="h-11" required />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Message pour le retrait en magasin */}
+                  {!isDeliverySelected && (
+                    <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
+                      <Store className="h-5 w-5 text-primary mb-2" />
+                      <p className="text-sm font-medium text-primary">Retrait en magasin</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Vous pourrez retirer votre commande gratuitement dans notre boutique aux heures d'ouverture.
+                      </p>
+                      <p className="text-xs font-medium mt-2">📍 Adresse du magasin :</p>
+                      <p className="text-xs text-muted-foreground">Abidjan, Cocody, Rue des Jardins</p>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Notes (optionnel)</Label>
-                    <Textarea name="notes" value={shippingInfo.notes} onChange={handleInputChange} placeholder="Instructions de livraison..." rows={3} />
+                    <Textarea name="notes" value={shippingInfo.notes} onChange={handleInputChange} placeholder={isDeliverySelected ? "Instructions de livraison..." : "Informations supplémentaires..."} rows={3} />
                   </div>
                 </div>
               </div>
@@ -905,7 +935,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="p-6">
                   <RadioGroup value={deliveryMethod} onValueChange={setDeliveryMethod}>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {deliveryMethods.map((method) => {
                         const Icon = method.icon
                         return (
@@ -926,11 +956,15 @@ export default function CheckoutPage() {
                                   {method.name}
                                 </Label>
                                 <p className="text-xs text-muted-foreground">{method.description}</p>
-                                <p className="text-xs text-primary mt-1">Livraison en {method.delay}</p>
+                                <p className="text-xs text-primary mt-1">{method.delay}</p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-lg font-bold text-primary">{method.price.toLocaleString()} FCFA</p>
+                              {method.price === 0 ? (
+                                <p className="text-sm font-bold text-green-600">GRATUIT</p>
+                              ) : (
+                                <p className="text-lg font-bold text-primary">{method.price.toLocaleString()} FCFA</p>
+                              )}
                               <Icon className="h-4 w-4 text-muted-foreground mt-1" />
                             </div>
                           </div>
@@ -1044,8 +1078,14 @@ export default function CheckoutPage() {
                       <span className="font-medium">{subtotal.toLocaleString()} FCFA</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Livraison ({selectedDelivery.name})</span>
-                      <span className="font-medium text-green-600">+{selectedDelivery.price.toLocaleString()} FCFA</span>
+                      <span className="text-muted-foreground">
+                        {selectedDelivery.name === "Retrait en magasin" ? "Frais de retrait" : "Livraison"}
+                      </span>
+                      {selectedDelivery.price === 0 ? (
+                        <span className="font-medium text-green-600">Gratuit</span>
+                      ) : (
+                        <span className="font-medium text-green-600">+{selectedDelivery.price.toLocaleString()} FCFA</span>
+                      )}
                     </div>
                     <div className="border-t pt-3 mt-2">
                       <div className="flex justify-between text-lg font-bold">
@@ -1059,7 +1099,7 @@ export default function CheckoutPage() {
                     <Shield className="h-5 w-5 text-primary mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">
                       Paiement 100% sécurisé<br />
-                      Livraison suivie en temps réel
+                      {selectedDelivery.name === "Retrait en magasin" ? "Retrait gratuit en boutique" : "Livraison suivie en temps réel"}
                     </p>
                   </div>
                 </div>
