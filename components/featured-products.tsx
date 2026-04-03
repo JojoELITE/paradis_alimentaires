@@ -6,48 +6,44 @@ import ProductCard from "@/components/product-card"
 import { useEffect, useState } from "react"
 
 interface Product {
-  id: number
+  id: string
   name: string
-  price: number
-  old_price: number | null
-  image_url: string | null
+  price: string
+  oldPrice?: string | null
+  imageUrl: string | null
   category: string | null
-  is_new: boolean
-  is_on_sale: boolean
+  isNew: boolean
+  isOnSale: boolean
   description?: string
   stock?: number
   rating?: number
-  reviews_count?: number
+  reviewsCount?: number
 }
 
 export default function FeaturedProducts() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/products')
+        const res = await fetch(
+          "https://ecomerce-api-1-dp0w.onrender.com/api/products"
+        )
 
         if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`)
+          throw new Error("Erreur API")
         }
 
         const data = await res.json()
 
-        // Vérifier si la réponse est valide
-        if (data.success === true) {
+        console.log("API:", data)
+
+        if (data.success) {
           setProducts(data.data || [])
-          setError(null)
-        } else {
-          throw new Error(data.message || 'Failed to fetch products')
         }
-      } catch (err) {
-        console.error('Error fetching products:', err)
-        // Ne pas afficher d'erreur si c'est juste un problème réseau temporaire
-        // setError(err instanceof Error ? err.message : 'An error occurred')
-        setError(null) // On ignore l'erreur pour l'instant
+      } catch (error) {
+        console.error("Erreur:", error)
       } finally {
         setLoading(false)
       }
@@ -56,41 +52,29 @@ export default function FeaturedProducts() {
     fetchProducts()
   }, [])
 
-  // Transformer les données de l'API
+  // ✅ Transformation des données
   const formattedProducts = products.map((product) => ({
     id: product.id,
     name: product.name,
-    price: product.price,
-    oldPrice: product.old_price,
-    image: product.image_url || "/images/placeholder.png",
+    price: Number(product.price),
+    oldPrice: product.oldPrice ? Number(product.oldPrice) : null,
+    image: product.imageUrl || "/images/placeholder.png",
     category: product.category || "Produits",
-    isNew: product.is_new,
-    isOnSale: product.is_on_sale,
+    isNew: product.isNew,
+    isOnSale: product.isOnSale,
     description: product.description,
     stock: product.stock,
     rating: product.rating,
-    reviewsCount: product.reviews_count,
+    reviewsCount: product.reviewsCount,
   }))
 
-  // Limiter à 12 produits
   const featuredProducts = formattedProducts.slice(0, 12)
 
+  // ✅ Loading
   if (loading) {
     return (
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Produits Populaires</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Chargement des produits...
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-gray-100 rounded-lg h-64 animate-pulse"></div>
-            ))}
-          </div>
-        </div>
+      <section className="py-16 text-center">
+        <p>Chargement des produits...</p>
       </section>
     )
   }
@@ -98,20 +82,21 @@ export default function FeaturedProducts() {
   return (
     <section className="py-16">
       <div className="container mx-auto px-4">
+
+        {/* HEADER */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">Produits Populaires</h2>
+          <h2 className="text-3xl font-bold mb-4">
+            Produits Populaires
+          </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Découvrez nos produits les plus appréciés par nos clients, sélectionnés avec soin pour leur qualité
-            exceptionnelle
+            Découvrez nos meilleurs produits disponibles sur la plateforme
           </p>
         </div>
 
+        {/* LISTE PRODUITS */}
         {featuredProducts.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Aucun produit disponible pour le moment.</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Revenez bientôt pour découvrir notre sélection de produits frais et de qualité.
-            </p>
+          <div className="text-center py-10">
+            <p>Aucun produit disponible</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -121,17 +106,13 @@ export default function FeaturedProducts() {
           </div>
         )}
 
+        {/* BOUTON */}
         <div className="mt-12 text-center">
           <Link href="/produits">
-            <Button
-              variant="outline"
-              size="lg"
-              className="border-primary text-primary hover:bg-primary hover:text-white"
-            >
-              Voir tous les produits
-            </Button>
+            <Button>Voir tous les produits</Button>
           </Link>
         </div>
+
       </div>
     </section>
   )
