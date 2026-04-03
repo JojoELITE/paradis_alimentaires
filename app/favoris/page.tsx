@@ -12,10 +12,11 @@ import { useAuth } from "@/hooks/use-auth"
 import { toast } from "@/components/ui/use-toast"
 
 interface FavoriteItem {
-  id: number
+  id: string
   name: string
   price: number
   image: string
+  imageUrl?: string  // Ajout pour la compatibilité
   category: string
 }
 
@@ -41,9 +42,10 @@ export default function FavoritesPage() {
             const favoriteItems = data.data.map((product: any) => ({
               id: product.id,
               name: product.name,
-              price: product.price,
-              image: product.image,
-              category: product.category
+              price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
+              // Important: Utiliser imageUrl car c'est ce que votre API renvoie
+              image: product.imageUrl || product.image || "/placeholder.png",
+              category: product.category || "Produits"
             }))
             setItems(favoriteItems)
           }
@@ -117,6 +119,16 @@ export default function FavoritesPage() {
     }
   }
 
+  // Fonction pour obtenir l'URL de l'image
+  const getImageUrl = (item: FavoriteItem) => {
+    // Si l'image est une URL complète, l'utiliser directement
+    if (item.image?.startsWith('http')) {
+      return item.image
+    }
+    // Sinon, utiliser le placeholder
+    return "/placeholder.png"
+  }
+
   if (isLoading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center pt-32 pb-16">
@@ -165,19 +177,24 @@ export default function FavoritesPage() {
             >
               <CardContent className="p-0 relative">
                 <Link href={`/produits/${item.id}`}>
-                  <div className="aspect-square relative overflow-hidden">
+                  <div className="aspect-square relative overflow-hidden bg-gray-100">
                     <Image
-                      src={item.image || "/placeholder.svg"}
+                      src={getImageUrl(item)}
                       alt={item.name}
                       fill
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        // Si l'image ne charge pas, utiliser le placeholder
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/placeholder.png";
+                      }}
                     />
 
                     {/* Remove Button */}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="absolute top-2 right-2 bg-white/80 hover:bg-white text-red-500 hover:text-red-600 rounded-full h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      className="absolute top-2 right-2 bg-white/80 hover:bg-white text-red-500 hover:text-red-600 rounded-full h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
                       onClick={(e) => {
                         e.preventDefault()
                         handleRemoveFavorite(item)
@@ -194,17 +211,18 @@ export default function FavoritesPage() {
                     <h3 className="font-semibold text-lg mb-2 line-clamp-2">{item.name}</h3>
                   </Link>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-lg">
-                      {typeof item.price === 'number' 
-                        ? (item.price / 100).toLocaleString() 
-                        : item.price.toLocaleString()} FCFA
+                    <span className="font-bold text-lg text-primary">
+                      {item.price.toLocaleString()} FCFA
                     </span>
                   </div>
                 </div>
               </CardContent>
 
               <CardFooter className="p-4 pt-0">
-                <Button className="w-full gap-2 bg-primary hover:bg-primary/90" onClick={() => handleAddToCart(item)}>
+                <Button 
+                  className="w-full gap-2 bg-primary hover:bg-primary/90" 
+                  onClick={() => handleAddToCart(item)}
+                >
                   <ShoppingCart className="h-4 w-4" />
                   Ajouter au panier
                 </Button>
@@ -213,7 +231,7 @@ export default function FavoritesPage() {
           ))}
         </div>
 
-        <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="mt-12 flex flex-col sm:flex-row gap-4 justify-center">
           <Link href="/produits">
             <Button variant="outline" className="w-full sm:w-auto">
               Continuer mes achats
