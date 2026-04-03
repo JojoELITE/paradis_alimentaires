@@ -53,7 +53,7 @@ interface CustomerInfo {
 const MY_PAYVIT_SECRET_STORAGE_KEY = "mypayvit_secret";
 const GIMAC_ACCOUNT_CODE = "ACC_69A1BAB0D747B";
 
-// --- Fonctions utilitaires (définies dans le même fichier pour éviter les imports) ---
+// --- Fonctions utilitaires ---
 const persistSecretKey = (
   accountCode: string,
   secretKey: string,
@@ -139,7 +139,7 @@ const renewSecretForOperator = async (operator: string, accountCode: string, tok
   }
 };
 
-// Fonction pour obtenir le token (remplace AuthService.getToken)
+// Fonction pour obtenir le token
 const getToken = (): string | null => {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("token");
@@ -245,7 +245,6 @@ function MobileMoneyInputs({
               setCustomerInfo(info);
               onCustomerInfoChange?.(info);
               
-              // Renew secret for operator
               if (data.data.operator && data.data.account_code) {
                 await renewSecretForOperator(data.data.operator, data.data.account_code, token);
               }
@@ -467,7 +466,6 @@ function GIMACInputs({
     await requestSecret(operator);
   };
 
-  // Validation
   useEffect(() => {
     const isValid = !!selectedOperator && !!identifier && !!gimacSecretKey;
     onValidationChange?.(isValid);
@@ -757,7 +755,6 @@ export default function CheckoutPage() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   
-  // Validation states
   const [isMobileValid, setIsMobileValid] = useState(false);
   const [isGimacValid, setIsGimacValid] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
@@ -1035,6 +1032,22 @@ export default function CheckoutPage() {
           <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
             Finaliser la commande
           </h1>
+          <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-primary"></div>
+              <span>1. Livraison</span>
+            </div>
+            <div className="w-8 h-px bg-gray-300"></div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+              <span>2. Paiement</span>
+            </div>
+            <div className="w-8 h-px bg-gray-300"></div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+              <span>3. Confirmation</span>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1042,7 +1055,7 @@ export default function CheckoutPage() {
           <div className="lg:col-span-2 space-y-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Informations de livraison */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
                 <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                   <div className="flex items-center gap-2">
                     <MapPin className="h-5 w-5 text-primary" />
@@ -1084,20 +1097,22 @@ export default function CheckoutPage() {
                       <Store className="h-5 w-5 text-primary mb-2" />
                       <p className="text-sm font-medium text-primary">Retrait en magasin</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Vous pourrez retirer votre commande gratuitement dans notre boutique.
+                        Vous pourrez retirer votre commande gratuitement dans notre boutique aux heures d'ouverture.
                       </p>
+                      <p className="text-xs font-medium mt-2">📍 Adresse du magasin :</p>
+                      <p className="text-xs text-muted-foreground">Abidjan, Cocody, Rue des Jardins</p>
                     </div>
                   )}
 
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Notes (optionnel)</Label>
-                    <Textarea name="notes" value={shippingInfo.notes} onChange={handleInputChange} placeholder="Instructions..." rows={3} />
+                    <Textarea name="notes" value={shippingInfo.notes} onChange={handleInputChange} placeholder={isDeliverySelected ? "Instructions de livraison..." : "Informations supplémentaires..."} rows={3} />
                   </div>
                 </div>
               </div>
 
               {/* Mode de livraison */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
                 <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                   <div className="flex items-center gap-2">
                     <Truck className="h-5 w-5 text-primary" />
@@ -1147,7 +1162,7 @@ export default function CheckoutPage() {
               </div>
 
               {/* Mode de paiement */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
                 <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                   <div className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-primary" />
@@ -1282,7 +1297,7 @@ export default function CheckoutPage() {
                     <Shield className="h-5 w-5 text-primary mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">
                       Paiement 100% sécurisé<br />
-                      Transactions cryptées
+                      {selectedDelivery.name === "Retrait en magasin" ? "Retrait gratuit en boutique" : "Livraison suivie en temps réel"}
                     </p>
                   </div>
                 </div>
@@ -1295,6 +1310,18 @@ export default function CheckoutPage() {
                     <Link href="/contact" className="text-primary hover:underline inline-flex items-center gap-1">
                       <MessageCircle className="h-4 w-4" />
                       Contactez-nous
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/livraison" className="text-primary hover:underline inline-flex items-center gap-1">
+                      <Truck className="h-4 w-4" />
+                      Politique de livraison
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/retours" className="text-primary hover:underline inline-flex items-center gap-1">
+                      <Package className="h-4 w-4" />
+                      Politique de retours
                     </Link>
                   </li>
                 </ul>
