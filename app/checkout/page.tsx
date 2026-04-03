@@ -22,7 +22,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { AuthService } from "@/lib/auth";
 
 // --- Types ---
 interface Country {
@@ -54,7 +53,7 @@ interface CustomerInfo {
 const MY_PAYVIT_SECRET_STORAGE_KEY = "mypayvit_secret";
 const GIMAC_ACCOUNT_CODE = "ACC_69A1BAB0D747B";
 
-// --- Fonctions utilitaires ---
+// --- Fonctions utilitaires (définies dans le même fichier pour éviter les imports) ---
 const persistSecretKey = (
   accountCode: string,
   secretKey: string,
@@ -140,6 +139,12 @@ const renewSecretForOperator = async (operator: string, accountCode: string, tok
   }
 };
 
+// Fonction pour obtenir le token (remplace AuthService.getToken)
+const getToken = (): string | null => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("token");
+};
+
 // --- Modes de paiement ---
 const paymentMethods = [
   { id: "mobile", name: "Mobile Money", description: "Paiement par téléphone", icon: Smartphone },
@@ -217,7 +222,7 @@ function MobileMoneyInputs({
         if (cleanNumber.length >= 9) {
           setIsLoadingKyc(true);
           try {
-            const token = AuthService.getToken();
+            const token = getToken();
             if (!token) return;
 
             const response = await fetch(`/api/mypvit/withdraw/kyc?customerAccountNumber=${cleanNumber}`, {
@@ -249,6 +254,7 @@ function MobileMoneyInputs({
               onCustomerInfoChange?.(null);
             }
           } catch (error) {
+            console.error("Erreur KYC:", error);
             setCustomerInfo(null);
             onCustomerInfoChange?.(null);
           } finally {
@@ -435,7 +441,7 @@ function GIMACInputs({
 
   const requestSecret = async (operator: Operator) => {
     if (!operator) return;
-    const token = AuthService.getToken();
+    const token = getToken();
     if (!token) return;
 
     setIsLoadingSecret(true);
@@ -449,6 +455,8 @@ function GIMACInputs({
           description: "La clé de sécurité a été générée avec succès.",
         });
       }
+    } catch (error) {
+      console.error("Erreur génération clé:", error);
     } finally {
       setIsLoadingSecret(false);
     }
@@ -783,7 +791,7 @@ export default function CheckoutPage() {
 
   const processPayment = async (orderData: any): Promise<{ success: boolean; transactionId?: string; error?: string }> => {
     if (paymentMethod === "mobile" && customerInfo) {
-      const token = AuthService.getToken();
+      const token = getToken();
       const secretKey = getSecretKeyForAccount(customerInfo.account_code);
 
       if (!secretKey) {
@@ -819,6 +827,8 @@ export default function CheckoutPage() {
     }
 
     if (paymentMethod === "gimac" && gimacSecret) {
+      const token = getToken();
+      
       const payload = {
         amount: total,
         customer_account_number: shippingInfo.phone,
@@ -834,7 +844,7 @@ export default function CheckoutPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${AuthService.getToken()}`,
+          Authorization: `Bearer ${token}`,
           "X-Secret": gimacSecret,
         },
         body: JSON.stringify(payload),
