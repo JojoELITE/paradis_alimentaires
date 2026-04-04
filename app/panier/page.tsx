@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Tag, X, CheckCircle2 } from "lucide-react"
+import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Tag, X, CheckCircle2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useCart } from "@/hooks/use-cart"
@@ -34,39 +34,34 @@ interface AppliedCoupon {
   }
 }
 
-// ─── Fonction pour obtenir l'URL de l'image ───────────────────────────────────
 const getImageUrl = (item: any) => {
-  // Vérifier les différentes propriétés possibles pour l'image
   const url = item?.image || item?.imageUrl || item?.image_url || item?.product?.image || item?.product?.imageUrl
-  
-  if (url && url.startsWith('http')) {
-    return url
-  }
+  if (url && url.startsWith('http')) return url
   return "/placeholder.png"
 }
 
-// ─── Composant principal ───────────────────────────────────────────────────────
 export default function CartPage() {
   const { items, removeItem, updateQuantity, subtotal, clearCart, setItems } = useCart()
   const { user } = useAuth()
 
-  // États panier
+  // États
   const [isLoading, setIsLoading] = useState(true)
   const [deliveryMethod, setDeliveryMethod] = useState<"delivery" | "no_delivery">("delivery")
-  // États coupon
   const [couponCode, setCouponCode] = useState("")
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null)
   const [couponError, setCouponError] = useState<string | null>(null)
   const [couponSuccess, setCouponSuccess] = useState<string | null>(null)
 
-  // Calculs
+  // État pour suivre quel produit est en cours de mise à jour
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+
   const baseShipping = 2500
   const shipping = deliveryMethod === "no_delivery" ? 0 : baseShipping
   const discountAmount = appliedCoupon?.pricing.discount_amount ?? 0
   const total = subtotal + shipping - discountAmount
 
-  // ─── Chargement du panier ────────────────────────────────────────────────────
+  // ─── Chargement du panier depuis l'API ────────────────────────────────────────
   useEffect(() => {
     const fetchCart = async () => {
       if (!user?.id) {
@@ -78,27 +73,24 @@ export default function CartPage() {
       try {
         const response = await fetch(`${API_BASE}/cart/${user.id}`)
         const data = await response.json()
-        console.log("🛒 Panier reçu:", data)
 
         if (data.success && data.data) {
-          const cartItems = data.data.items.map((item: any) => {
-            // Récupérer l'URL de l'image depuis différentes sources
-            const productImage = item.product?.imageUrl || 
-                                item.product?.image_url || 
-                                item.product?.image || 
-                                "/placeholder.png"
-            
-            console.log(`📦 Produit ${item.product?.name}:`, productImage)
-            
-            return {
-              id: item.product_id,
-              name: item.product?.name || "Produit",
-              price: typeof item.product?.price === 'string' ? parseFloat(item.product.price) : (item.product?.price || 0),
-              quantity: item.quantity,
-              image: productImage,
-              category: item.product?.category || "Produit",
-            }
-          })
+          const cartItems = data.data.items.map((item: any) => ({
+            id: item.id, // ✅ FIX PRINCIPAL
+            productId: item.product_id, // ✅ AJOUT
+            name: item.product?.name || "Produit",
+            price:
+              typeof item.product?.price === "string"
+                ? parseFloat(item.product.price)
+                : item.product?.price || 0,
+            quantity: item.quantity,
+            image:
+              item.product?.imageUrl ||
+              item.product?.image_url ||
+              "/placeholder.png",
+            category: item.product?.category || "Produit",
+          }))
+
           setItems(cartItems)
         }
       } catch (error) {
@@ -111,7 +103,8 @@ export default function CartPage() {
     fetchCart()
   }, [user, setItems])
 
-  // ─── Synchronisation panier ──────────────────────────────────────────────────
+  // ─── Synchronisation avec l'API ──────────────────────────────────────────────
+  // ─── Synchronisation avec l'API ──────────────────────────────────────────────
   useEffect(() => {
     if (!user?.id || items.length === 0) return
 
@@ -122,7 +115,10 @@ export default function CartPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: user.id,
-            items: items.map((item) => ({ id: item.id, quantity: item.quantity })),
+            items: items.map((item) => ({
+              product_id: item.productId,
+              quantity: item.quantity,
+            })),
           }),
         })
       } catch (error) {
@@ -133,14 +129,25 @@ export default function CartPage() {
     return () => clearTimeout(timeoutId)
   }, [items, user])
 
-  // ─── Réinitialiser le coupon si le sous-total change ─────────────────────────
-  useEffect(() => {
-    if (appliedCoupon) {
-      setAppliedCoupon(null)
-      setCouponSuccess(null)
-      setCouponError("Le panier a changé, veuillez réappliquer votre coupon.")
-    }
-  }, [subtotal])
+  // ─── Gestion de la quantité (CORRECTION ICI) ─────────────────────────────────
+  const handleIncrement = (id: string, currentQuantity: number) => {
+    setUpdatingId(id)
+    updateQuantity(id, currentQuantity + 1)
+    setTimeout(() => setUpdatingId(null), 300)
+  }
+
+  const handleDecrement = (id: string, currentQuantity: number) => {
+    if (currentQuantity <= 1) return
+    setUpdatingId(id)
+    updateQuantity(id, currentQuantity - 1)
+    setTimeout(() => setUpdatingId(null), 300)
+  }
+
+  const handleRemove = (id: string) => {
+    setUpdatingId(id)
+    removeItem(id)
+    setTimeout(() => setUpdatingId(null), 300)
+  }
 
   // ─── Appliquer un coupon ─────────────────────────────────────────────────────
   const handleApplyCoupon = async () => {
@@ -156,7 +163,7 @@ export default function CartPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code: couponCode.trim(),
-          userId : user?.id ?? null,
+          userId: user?.id ?? null,
           items: items.map((item) => ({
             product_id: item.id,
             quantity: item.quantity,
@@ -167,7 +174,7 @@ export default function CartPage() {
       const data = await response.json()
 
       if (data.success) {
-        const discountAmount = data.data.discount_amount ?? 0
+        const discountAmountValue = data.data.discount_amount ?? 0
 
         setAppliedCoupon({
           coupon: {
@@ -181,15 +188,14 @@ export default function CartPage() {
           },
           pricing: {
             original_amount: subtotal,
-            discount_amount: discountAmount,
-            final_amount: subtotal + shipping - discountAmount,
-            savings_percentage:
-              subtotal > 0 ? Math.round((discountAmount / subtotal) * 100) : 0,
-            discount_label: `-${discountAmount} FCFA`,
+            discount_amount: discountAmountValue,
+            final_amount: subtotal + shipping - discountAmountValue,
+            savings_percentage: subtotal > 0 ? Math.round((discountAmountValue / subtotal) * 100) : 0,
+            discount_label: `-${discountAmountValue} FCFA`,
           },
         })
 
-        setCouponSuccess(`Coupon appliqué — vous économisez ${discountAmount} FCFA 🎉`)
+        setCouponSuccess(`Coupon appliqué — vous économisez ${discountAmountValue} FCFA 🎉`)
         setCouponCode("")
       } else {
         setCouponError(data.message || "Coupon invalide")
@@ -204,19 +210,17 @@ export default function CartPage() {
     }
   }
 
-  // ─── Supprimer le coupon appliqué ────────────────────────────────────────────
   const handleRemoveCoupon = () => {
     setAppliedCoupon(null)
     setCouponSuccess(null)
     setCouponError(null)
   }
 
-  // ─── Entrée clavier sur le champ coupon ──────────────────────────────────────
   const handleCouponKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleApplyCoupon()
   }
 
-  // ─── État chargement ─────────────────────────────────────────────────────────
+  // ─── Affichages ──────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center pt-32 pb-16">
@@ -228,7 +232,6 @@ export default function CartPage() {
     )
   }
 
-  // ─── Panier vide ─────────────────────────────────────────────────────────────
   if (items.length === 0) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center pt-32 pb-16">
@@ -238,8 +241,7 @@ export default function CartPage() {
           </div>
           <h1 className="text-3xl font-bold mb-4">Votre panier est vide</h1>
           <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-            Vous n&apos;avez pas encore ajouté de produits à votre panier. Parcourez notre
-            catalogue pour trouver des produits frais et de qualité.
+            Vous n&apos;avez pas encore ajouté de produits à votre panier.
           </p>
           <Link href="/produits">
             <Button size="lg" className="bg-primary hover:bg-primary/90">
@@ -251,14 +253,14 @@ export default function CartPage() {
     )
   }
 
-  // ─── Panier rempli ────────────────────────────────────────────────────────────
+  // ─── RENDU PRINCIPAL ─────────────────────────────────────────────────────────
   return (
     <main className="flex min-h-screen flex-col pt-32 pb-16">
       <div className="container mx-auto px-4">
         <h1 className="text-3xl font-bold mb-8">Mon Panier</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* ── Articles ─────────────────────────────────────────────────────── */}
+          {/* Liste des articles */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="p-6 border-b border-gray-200 flex justify-between items-center">
@@ -276,9 +278,11 @@ export default function CartPage() {
               <div className="divide-y divide-gray-200">
                 {items.map((item) => {
                   const imageUrl = getImageUrl(item)
+                  const isUpdating = updatingId === item.id
+
                   return (
                     <div key={item.id} className="p-6 flex flex-col sm:flex-row gap-4">
-                      {/* Image du produit */}
+                      {/* Image */}
                       <div className="relative h-24 w-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
                         <Image
                           src={imageUrl}
@@ -292,6 +296,7 @@ export default function CartPage() {
                         />
                       </div>
 
+                      {/* Infos produit */}
                       <div className="flex-1">
                         <div className="flex flex-col sm:flex-row sm:justify-between">
                           <div>
@@ -308,32 +313,46 @@ export default function CartPage() {
                           </div>
                         </div>
 
+                        {/* Actions */}
                         <div className="mt-4 flex justify-between items-center">
                           <div className="flex items-center border border-gray-300 rounded-md">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 rounded-none text-gray-500"
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              className="h-8 w-8 rounded-none text-gray-500 disabled:opacity-50"
+                              onClick={() => handleDecrement(item.id, item.quantity)}
+                              disabled={isUpdating || item.quantity <= 1}
                             >
-                              <Minus className="h-3 w-3" />
+                              {isUpdating ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Minus className="h-3 w-3" />
+                              )}
                             </Button>
+
                             <span className="w-10 text-center">{item.quantity}</span>
+
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 rounded-none text-gray-500"
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              className="h-8 w-8 rounded-none text-gray-500 disabled:opacity-50"
+                              onClick={() => handleIncrement(item.id, item.quantity)}
+                              disabled={isUpdating}
                             >
-                              <Plus className="h-3 w-3" />
+                              {isUpdating ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Plus className="h-3 w-3" />
+                              )}
                             </Button>
                           </div>
 
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => removeItem(item.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            onClick={() => handleRemove(item.id)}
+                            disabled={isUpdating}
                           >
                             <Trash2 className="h-4 w-4 mr-1" />
                             Supprimer
@@ -347,29 +366,25 @@ export default function CartPage() {
             </div>
 
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <Link href="/produits">
-                  <Button variant="outline" className="w-full">
-                    Continuer mes achats
-                  </Button>
-                </Link>
-              </div>
-              <div className="flex-1">
-                <Link href="/checkout">
-                  <Button className="w-full bg-primary hover:bg-primary/90">
-                    Passer à la caisse
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
+              <Link href="/produits" className="flex-1">
+                <Button variant="outline" className="w-full">
+                  Continuer mes achats
+                </Button>
+              </Link>
+              <Link href="/checkout" className="flex-1">
+                <Button className="w-full bg-primary hover:bg-primary/90">
+                  Passer à la caisse
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
             </div>
           </div>
 
-          {/* ── Récapitulatif ────────────────────────────────────────────────── */}
+          {/* Récapitulatif */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-semibold">Récapitulatif de la commande</h2>
+                <h2 className="text-xl font-semibold">Récapitulatif</h2>
               </div>
 
               <div className="p-6 space-y-4">
@@ -377,6 +392,7 @@ export default function CartPage() {
                   <span className="text-muted-foreground">Sous-total</span>
                   <span className="font-medium">{subtotal.toLocaleString()} FCFA</span>
                 </div>
+
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -384,27 +400,23 @@ export default function CartPage() {
                       checked={deliveryMethod === "delivery"}
                       onChange={() => setDeliveryMethod("delivery")}
                     />
-                    Avec livraison
+                    Avec livraison (+{baseShipping.toLocaleString()} FCFA)
                   </label>
-
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
                       checked={deliveryMethod === "no_delivery"}
                       onChange={() => setDeliveryMethod("no_delivery")}
                     />
-                    Sans livraison (gratuit)
+                    Retrait en magasin (gratuit)
                   </label>
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Frais de livraison</span>
                   <span className="font-medium">{shipping.toLocaleString()} FCFA</span>
                 </div>
-                {deliveryMethod === "no_delivery" && (
-                  <p className="text-green-600 text-xs">
-                    ✔ Aucun frais de livraison appliqué
-                  </p>
-                )}
+
                 {appliedCoupon && (
                   <div className="flex justify-between items-center text-green-600">
                     <span className="flex items-center gap-1">
@@ -415,125 +427,61 @@ export default function CartPage() {
                       <span className="font-medium">
                         -{appliedCoupon.pricing.discount_amount.toLocaleString()} FCFA
                       </span>
-                      <button
-                        onClick={handleRemoveCoupon}
-                        className="text-gray-400 hover:text-red-500 transition-colors"
-                        title="Supprimer le coupon"
-                      >
+                      <button onClick={handleRemoveCoupon} className="text-gray-400 hover:text-red-500">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
                 )}
 
-                <div className="pt-4 border-t border-gray-200">
+                <div className="pt-4 border-t">
                   <div className="flex justify-between text-lg font-semibold">
                     <span>Total</span>
                     <span className="text-primary">{total.toLocaleString()} FCFA</span>
                   </div>
                   {appliedCoupon && (
                     <p className="text-xs text-green-600 mt-1">
-                      🎉 Vous économisez {appliedCoupon.pricing.discount_amount.toLocaleString()} FCFA
-                      ({appliedCoupon.pricing.savings_percentage}%)
+                      🎉 Économie de {appliedCoupon.pricing.discount_amount.toLocaleString()} FCFA
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">Taxes incluses si applicables</p>
                 </div>
 
-                {/* ── Zone coupon ────────────────────────────────────────────── */}
+                {/* Zone coupon */}
                 <div className="pt-2">
                   {appliedCoupon ? (
                     <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-md">
-                      <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-green-700 truncate">
-                          {appliedCoupon.coupon.code}
-                        </p>
-                        <p className="text-xs text-green-600">
-                          {appliedCoupon.coupon.description || appliedCoupon.pricing.discount_label}
-                        </p>
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-green-700">{appliedCoupon.coupon.code}</p>
                       </div>
-                      <button
-                        onClick={handleRemoveCoupon}
-                        className="text-green-400 hover:text-red-500 transition-colors flex-shrink-0"
-                      >
+                      <button onClick={handleRemoveCoupon} className="text-green-400 hover:text-red-500">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Code promo"
-                          value={couponCode}
-                          onChange={(e) => {
-                            setCouponCode(e.target.value)
-                            setCouponError(null)
-                          }}
-                          onKeyDown={handleCouponKeyDown}
-                          className={cn(
-                            "flex-1 tracking-widest",
-                            couponError && "border-red-400 focus-visible:ring-red-400"
-                          )}
-                          disabled={isApplyingCoupon}
-                        />
-                        <Button
-                          onClick={handleApplyCoupon}
-                          disabled={isApplyingCoupon || !couponCode.trim()}
-                          className="bg-gray-800 hover:bg-gray-900 text-white min-w-[90px]"
-                        >
-                          {isApplyingCoupon ? (
-                            <span className="flex items-center gap-1">
-                              <span className="animate-spin h-3 w-3 border border-white border-t-transparent rounded-full" />
-                              ...
-                            </span>
-                          ) : (
-                            "Appliquer"
-                          )}
-                        </Button>
-                      </div>
-
-                      {couponError && (
-                        <p className="text-xs text-red-500 flex items-center gap-1">
-                          <X className="h-3 w-3" />
-                          {couponError}
-                        </p>
-                      )}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Code promo"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        onKeyDown={handleCouponKeyDown}
+                        disabled={isApplyingCoupon}
+                      />
+                      <Button onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim()}>
+                        {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : "Appliquer"}
+                      </Button>
                     </div>
                   )}
-
-                  {couponSuccess && !couponError && (
-                    <p className="text-xs text-green-600 flex items-center gap-1 mt-2">
-                      <CheckCircle2 className="h-3 w-3" />
-                      {couponSuccess}
-                    </p>
-                  )}
+                  {couponError && <p className="text-xs text-red-500 mt-1">{couponError}</p>}
+                  {couponSuccess && <p className="text-xs text-green-600 mt-1">{couponSuccess}</p>}
                 </div>
 
-                <div className="pt-2">
-                  <Link
-                    href={`/checkout${appliedCoupon ? `?coupon=${appliedCoupon.coupon.id}&discount=${appliedCoupon.pricing.discount_amount}` : ""}`}
-                  >
-                    <Button className="w-full bg-primary hover:bg-primary/90 py-6">
-                      Passer à la caisse
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
-
-                <div className="pt-2">
-                  <div className="text-sm text-center text-muted-foreground">Nous acceptons :</div>
-                  <div className="flex justify-center space-x-2 mt-2">
-                    {["Visa", "MC", "PayPal", "Orange"].map((method) => (
-                      <div
-                        key={method}
-                        className="h-8 w-12 bg-gray-100 border border-gray-200 rounded flex items-center justify-center text-xs font-medium text-gray-600"
-                      >
-                        {method}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <Link href="/checkout">
+                  <Button className="w-full bg-primary hover:bg-primary/90 py-6">
+                    Passer à la caisse
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
