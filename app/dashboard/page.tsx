@@ -239,7 +239,7 @@ export default function MerchantDashboard() {
 
   // ==================== CHARGEMENT DES DONNÉES ====================
   useEffect(() => {
-    if (user.role !== "marchant" || user.role !== "merchant") {
+    if (user.role !== "marchand" || user.role !== "merchand") {
       router.push("/")
       return
     }
