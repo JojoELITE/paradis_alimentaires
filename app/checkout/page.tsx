@@ -1,328 +1,177 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { ChevronLeft, CreditCard, Truck, Check, MapPin, Phone, Mail, User, MessageCircle, Loader2, QrCode, Globe, Building2, Smartphone, Shield, Clock, Package, Award, X, Store, ArrowDownLeft, Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCart } from "@/hooks/use-cart";
-import { useAuth } from "@/hooks/use-auth";
-import { cn } from "@/lib/utils";
-import { toast } from "@/components/ui/use-toast";
+import { useState, useEffect, useRef } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import {
+  ChevronLeft, CreditCard, Truck, Check, MapPin, Phone, Mail, User,
+  MessageCircle, Loader2, QrCode, Globe, Building2, Smartphone, Shield,
+  Clock, Package, Award, X, Store
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useCart } from "@/hooks/use-cart"
+import { useAuth } from "@/hooks/use-auth"
+import { cn } from "@/lib/utils"
+import { toast } from "@/components/ui/use-toast"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+} from "@/components/ui/dialog"
 
 // --- Types ---
 interface Country {
-  name: string;
-  iso_code: string;
-  status: boolean;
+  name: string
+  iso_code: string
+  status: boolean
 }
 
 interface Operator {
-  name: string;
-  code: string;
-  active: boolean;
-  provider: string;
+  name: string
+  code: string
+  active: boolean
+  provider: string
   country: {
-    name: string;
-    iso_code: string;
-  };
+    name: string
+    iso_code: string
+  }
 }
 
-interface CustomerInfo {
-  fullName: string;
-  customerAccountNumber: string;
-  isActive: boolean;
-  operator?: string;
-  account_code?: string;
+interface KYCData {
+  operator: string | null
+  full_name: string | null
+  detected_operator?: string
 }
 
 // --- Constantes ---
-const MY_PAYVIT_SECRET_STORAGE_KEY = "mypayvit_secret";
-const GIMAC_ACCOUNT_CODE = "ACC_69A1BAB0D747B";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ecomerce-api-1-dp0w.onrender.com"
+const PAYMENT_API_URL = process.env.NEXT_PUBLIC_PAYMENT_API_URL || "https://apist.onrender.com"
 
-// --- Fonctions utilitaires ---
-const persistSecretKey = (
-  accountCode: string,
-  secretKey: string,
-  operatorLabel?: string,
-  expiresIn?: number
-) => {
-  if (typeof window === "undefined") return;
-
-  const existing = localStorage.getItem(MY_PAYVIT_SECRET_STORAGE_KEY);
-  const parsed = existing ? JSON.parse(existing) : {};
-
-  const entry = {
-    secret: secretKey,
-    operationAccountCode: accountCode,
-    expires_in: expiresIn ?? 3600,
-    timestamp: Date.now(),
-  };
-
-  parsed[accountCode] = entry;
-
-  const label = operatorLabel?.toLowerCase() || "";
-  if (label.includes("airtel")) {
-    parsed.airtel = entry;
-  } else if (label.includes("moov")) {
-    parsed.moov = entry;
-  } else if (label.includes("gimac")) {
-    parsed.gimac = entry;
-  } else if (accountCode.includes("GIMAC")) {
-    parsed.gimac = entry;
-  }
-
-  localStorage.setItem(MY_PAYVIT_SECRET_STORAGE_KEY, JSON.stringify(parsed));
-};
-
-const getSecretKeyForAccount = (accountCode?: string): string | null => {
-  if (typeof window === "undefined") return null;
-
-  const stored = localStorage.getItem(MY_PAYVIT_SECRET_STORAGE_KEY);
-  if (!stored) return null;
-
-  const parsed = JSON.parse(stored);
-  if (accountCode && parsed[accountCode]?.secret) {
-    return parsed[accountCode].secret;
-  }
-
-  if (accountCode?.includes("AIRTEL") && parsed.airtel) return parsed.airtel.secret;
-  if (accountCode?.includes("MOOV") && parsed.moov) return parsed.moov.secret;
-  if (accountCode?.includes("GIMAC") && parsed.gimac) return parsed.gimac.secret;
-
-  if (parsed.gimac) return parsed.gimac.secret;
-  if (parsed.airtel) return parsed.airtel.secret;
-  if (parsed.moov) return parsed.moov.secret;
-  return null;
-};
-
-const renewSecretForOperator = async (operator: string, accountCode: string, token: string): Promise<string | null> => {
-  try {
-    const response = await fetch("https://api-akiba-1.onrender.com/api/renew-secret", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        operationAccountCode: accountCode,
-        password: "Jehov@h2508@",
-      }),
-    });
-
-    const data = await response.json();
-
-    if (response.ok && data.results?.length > 0 && data.results[0].data?.secret) {
-      const secretKey = data.results[0].data.secret;
-      const operationCode = data.results[0].data.operation_account_code || accountCode;
-
-      persistSecretKey(operationCode, secretKey, operator, data.results[0].data.expires_in);
-      return secretKey;
-    }
-    return null;
-  } catch (error) {
-    console.error(`Erreur renouvellement clé pour ${operator}:`, error);
-    return null;
-  }
-};
-
-// Fonction pour obtenir le token
-const getToken = (): string | null => {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
-};
-
-// --- Modes de paiement ---
 const paymentMethods = [
-  { id: "mobile", name: "Mobile Money", description: "Paiement par téléphone", icon: Smartphone },
-  { id: "gimac", name: "GIMAC", description: "Paiement via GIMAC", icon: Building2 },
+  { id: "card", name: "Carte bancaire", description: "Visa, Mastercard, etc.", icon: CreditCard },
+  { id: "mobile", name: "Mobile Money", description: "Orange Money, MTN Mobile Money, etc.", icon: Smartphone },
   { id: "qr", name: "QR Code", description: "Payez par QR code", icon: QrCode },
-];
+]
 
-// --- Modes de livraison ---
 const deliveryMethods = [
   { id: "pickup", name: "Retrait en magasin", price: 0, description: "Retirez votre commande gratuitement en magasin", icon: Store, delay: "Retrait immédiat" },
   { id: "standard", name: "Livraison Standard", price: 2500, description: "Livraison à domicile en 3-5 jours", icon: Truck, delay: "3-5 jours" },
   { id: "express", name: "Livraison Express", price: 5000, description: "Livraison à domicile en 1-2 jours", icon: Clock, delay: "1-2 jours" },
-];
+]
 
-// --- Composant MobileMoneyInputs ---
-function MobileMoneyInputs({ 
-  onCustomerInfoChange,
-  onValidationChange 
-}: { 
-  onCustomerInfoChange?: (info: CustomerInfo | null) => void;
-  onValidationChange?: (isValid: boolean) => void;
-}) {
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [selectedCountry, setSelectedCountry] = useState<string>("GA");
-  const [operators, setOperators] = useState<Operator[]>([]);
-  const [selectedOperator, setSelectedOperator] = useState<string>("");
-  const [phoneNumber, setPhoneNumber] = useState<string>("");
-  const [isLoadingCountries, setIsLoadingCountries] = useState(true);
-  const [isLoadingOperators, setIsLoadingOperators] = useState(false);
-  const [isLoadingKyc, setIsLoadingKyc] = useState(false);
-  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
-
-  useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const response = await fetch("https://api-akiba-1.onrender.com/api/mypvit/countries");
-        const data = await response.json();
-        if (data.success && data.data) {
-          setCountries(data.data.filter((country: Country) => country.status === true));
-        }
-      } catch (error) {
-        console.error("Erreur chargement pays:", error);
-      } finally {
-        setIsLoadingCountries(false);
-      }
-    };
-    fetchCountries();
-  }, []);
+// --- Composant CardInputs ---
+function CardInputs({ countries }: { countries: Country[] }) {
+  const [selectedCountry, setSelectedCountry] = useState<string>("")
+  const [operators, setOperators] = useState<Operator[]>([])
+  const [selectedOperator, setSelectedOperator] = useState<string>("")
+  const [isLoadingOperators, setIsLoadingOperators] = useState(false)
+  const [cardNumber, setCardNumber] = useState("")
+  const [expiryDate, setExpiryDate] = useState("")
+  const [cvv, setCvv] = useState("")
+  const [cardName, setCardName] = useState("")
 
   useEffect(() => {
     const fetchOperators = async () => {
-      if (!selectedCountry) return;
-      setIsLoadingOperators(true);
+      if (!selectedCountry) {
+        setOperators([])
+        return
+      }
+      setIsLoadingOperators(true)
       try {
-        const response = await fetch(`https://api-akiba-1.onrender.com/api/mypvit/operators/${selectedCountry}`);
-        const data = await response.json();
+        const response = await fetch(`${PAYMENT_API_URL}/api/mypvit/operators/${selectedCountry}`)
+        const data = await response.json()
         if (data.success && data.data?.operators) {
-          const activeOps = data.data.operators.filter((op: Operator) => op.active === true);
-          setOperators(activeOps);
+          const activeOperators = data.data.operators.filter((op: Operator) => op.active === true)
+          setOperators(activeOperators)
+          setSelectedOperator("")
+        } else {
+          setOperators([])
         }
       } catch (error) {
-        console.error("Erreur chargement opérateurs:", error);
+        console.error("Erreur chargement opérateurs:", error)
+        toast({ title: "Erreur", description: "Impossible de charger les opérateurs", variant: "destructive" })
       } finally {
-        setIsLoadingOperators(false);
+        setIsLoadingOperators(false)
       }
-    };
-    fetchOperators();
-  }, [selectedCountry]);
+    }
+    fetchOperators()
+  }, [selectedCountry])
 
-  // KYC effect
-  useEffect(() => {
-    const fetchKYC = async () => {
-      if (phoneNumber && phoneNumber.length >= 9) {
-        const cleanNumber = phoneNumber.replace(/\D/g, "");
-        if (cleanNumber.length >= 9) {
-          setIsLoadingKyc(true);
-          try {
-            const token = getToken();
-            if (!token) return;
+  const formatCardNumber = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '')
+    const matches = v.match(/\d{4,16}/g)
+    const match = matches && matches[0] || ''
+    const parts = []
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4))
+    }
+    return parts.length ? parts.join(' ') : value
+  }
 
-            const response = await fetch(`/api/mypvit/withdraw/kyc?customerAccountNumber=${cleanNumber}`, {
-              method: "GET",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            });
-
-            const data = await response.json();
-            if (data.success && data.data) {
-              const info = {
-                fullName: data.data.full_name,
-                customerAccountNumber: data.data.customer_account_number,
-                isActive: data.data.is_active,
-                operator: data.data.operator,
-                account_code: data.data.account_code,
-              };
-              setCustomerInfo(info);
-              onCustomerInfoChange?.(info);
-              
-              if (data.data.operator && data.data.account_code) {
-                await renewSecretForOperator(data.data.operator, data.data.account_code, token);
-              }
-            } else {
-              setCustomerInfo(null);
-              onCustomerInfoChange?.(null);
-            }
-          } catch (error) {
-            console.error("Erreur KYC:", error);
-            setCustomerInfo(null);
-            onCustomerInfoChange?.(null);
-          } finally {
-            setIsLoadingKyc(false);
-          }
-        }
-      } else {
-        setCustomerInfo(null);
-        onCustomerInfoChange?.(null);
-      }
-    };
-    fetchKYC();
-  }, [phoneNumber, onCustomerInfoChange]);
-
-  // Validation
-  useEffect(() => {
-    const isValid = !!phoneNumber && phoneNumber.length >= 9 && !!selectedOperator && !!customerInfo;
-    onValidationChange?.(isValid);
-  }, [phoneNumber, selectedOperator, customerInfo, onValidationChange]);
+  const formatExpiryDate = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '')
+    if (v.length >= 2) {
+      return v.substring(0, 2) + (v.length > 2 ? '/' + v.substring(2, 4) : '')
+    }
+    return v
+  }
 
   return (
-    <div className="mt-6 space-y-5">
+    <div className="mt-6 space-y-5 animate-in slide-in-from-top-2 duration-300">
       <div className="space-y-2">
         <Label className="text-sm font-semibold flex items-center gap-2">
           <Globe className="h-4 w-4 text-primary" />
-          Pays
+          Pays de la carte
         </Label>
-        {isLoadingCountries ? (
-          <div className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg bg-gray-50">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <span className="ml-2 text-sm">Chargement...</span>
-          </div>
-        ) : (
-          <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-            <SelectTrigger className="h-11">
-              <SelectValue placeholder="Sélectionnez votre pays" />
-            </SelectTrigger>
-            <SelectContent>
-              {countries.map((country) => (
+        <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+          <SelectTrigger className="h-11 bg-white border-gray-200 hover:border-primary/50 transition-colors">
+            <SelectValue placeholder="Sélectionnez votre pays" />
+          </SelectTrigger>
+          <SelectContent className="max-h-60">
+            {countries.length > 0 ? (
+              countries.map((country) => (
                 <SelectItem key={country.iso_code} value={country.iso_code}>
-                  {country.name}
+                  <div className="flex items-center justify-between w-full">
+                    <span>{country.name}</span>
+                    <span className="text-xs text-muted-foreground">{country.iso_code}</span>
+                  </div>
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+              ))
+            ) : (
+              <SelectItem value="no-countries" disabled>Aucun pays disponible</SelectItem>
+            )}
+          </SelectContent>
+        </Select>
       </div>
 
-      {selectedCountry && (
-        <div className="space-y-2">
+      {selectedCountry && operators.length > 0 && (
+        <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
           <Label className="text-sm font-semibold flex items-center gap-2">
-            <Smartphone className="h-4 w-4 text-primary" />
-            Opérateur Mobile Money
+            <Building2 className="h-4 w-4 text-primary" />
+            Opérateur / Banque
           </Label>
           {isLoadingOperators ? (
             <div className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg bg-gray-50">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="ml-2 text-sm">Chargement...</span>
+              <span className="ml-2 text-sm text-muted-foreground">Chargement des opérateurs...</span>
             </div>
           ) : (
             <Select value={selectedOperator} onValueChange={setSelectedOperator}>
-              <SelectTrigger className="h-11">
+              <SelectTrigger className="h-11 bg-white border-gray-200 hover:border-primary/50 transition-colors">
                 <SelectValue placeholder="Sélectionnez votre opérateur" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-60">
                 {operators.map((operator) => (
                   <SelectItem key={operator.code} value={operator.code}>
-                    <div className="flex flex-col">
-                      <span>{operator.name}</span>
+                    <div className="flex flex-col py-1">
+                      <span className="font-medium">{operator.name}</span>
                       <span className="text-xs text-muted-foreground">{operator.provider}</span>
                     </div>
                   </SelectItem>
@@ -333,146 +182,191 @@ function MobileMoneyInputs({
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="phoneNumber">Numéro de téléphone</Label>
-        <Input
-          id="phoneNumber"
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
-          placeholder="Ex: 07X XXX XXX"
-          className="h-11"
-        />
-      </div>
-
-      {isLoadingKyc && (
-        <div className="flex items-center text-sm text-gray-500">
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          Vérification des informations...
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="cardNumber">Numéro de carte</Label>
+          <Input
+            id="cardNumber"
+            value={cardNumber}
+            onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+            placeholder="1234 5678 9012 3456"
+            className="h-11 bg-white border-gray-200 focus:border-primary"
+            maxLength={19}
+          />
         </div>
-      )}
-
-      {customerInfo && (
-        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-green-600" />
-            <span className="font-medium text-green-800">{customerInfo.fullName}</span>
-            {customerInfo.operator && (
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                customerInfo.operator.toLowerCase().includes('moov') ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'
-              }`}>
-                {customerInfo.operator}
-              </span>
-            )}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="expiryDate">Date d'expiration</Label>
+            <Input
+              id="expiryDate"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(formatExpiryDate(e.target.value))}
+              placeholder="MM/AA"
+              className="h-11 bg-white"
+              maxLength={5}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cvv">CVV</Label>
+            <Input
+              id="cvv"
+              value={cvv}
+              onChange={(e) => setCvv(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="123"
+              className="h-11 bg-white"
+              type="password"
+              maxLength={4}
+            />
           </div>
         </div>
-      )}
+        <div className="space-y-2">
+          <Label htmlFor="cardName">Nom sur la carte</Label>
+          <Input
+            id="cardName"
+            value={cardName}
+            onChange={(e) => setCardName(e.target.value.toUpperCase())}
+            placeholder="Nom sur la carte"
+            className="h-11 bg-white"
+          />
+        </div>
+      </div>
 
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 border border-green-100">
-        <div className="flex items-start gap-2">
-          <Shield className="h-4 w-4 text-green-600 mt-0.5" />
-          <p className="text-xs text-green-800">
-            Vous recevrez une demande de paiement sur votre téléphone.
-            Des frais de transaction (3% + 50 FCFA) peuvent s'appliquer.
-          </p>
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-100">
+        <div className="flex items-center gap-2">
+          <Shield className="h-4 w-4 text-blue-600" />
+          <p className="text-xs text-blue-800">Transactions sécurisées par chiffrement SSL</p>
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-// --- Composant GIMACInputs ---
-function GIMACInputs({ 
-  onValidationChange,
-  onSecretReady,
-  amount
-}: { 
-  onValidationChange?: (isValid: boolean) => void;
-  onSecretReady?: (secret: string) => void;
-  amount?: number;
+// --- Composant MobileInputs (CONSOLIDÉ) ---
+// Gère pays + opérateur + numéro + KYC en un seul bloc.
+// Remonte au parent : phone, operatorCode, operatorName, fullName via callbacks.
+function MobileInputs({ onPhoneChange, onOperatorDetected, onOperatorChange }: {
+  onPhoneChange?: (phone: string) => void
+  onOperatorDetected?: (operator: string | null, fullName: string | null) => void
+  onOperatorChange?: (operatorCode: string | null, operatorName: string | null) => void
 }) {
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [selectedCountry, setSelectedCountry] = useState<string>("");
-  const [operators, setOperators] = useState<Operator[]>([]);
-  const [selectedOperator, setSelectedOperator] = useState<Operator | null>(null);
-  const [identifier, setIdentifier] = useState<string>("");
-  const [identifierType, setIdentifierType] = useState<"phone" | "card">("phone");
-  const [gimacSecretKey, setGimacSecretKey] = useState<string>("");
-  const [isLoadingCountries, setIsLoadingCountries] = useState(true);
-  const [isLoadingOperators, setIsLoadingOperators] = useState(false);
-  const [isLoadingSecret, setIsLoadingSecret] = useState(false);
+  const [countries, setCountries] = useState<Country[]>([])
+  const [selectedCountry, setSelectedCountry] = useState<string>("")
+  const [operators, setOperators] = useState<Operator[]>([])
+  const [selectedOperator, setSelectedOperator] = useState<string>("")
+  const [mobileNumber, setMobileNumber] = useState("")
+  const [isLoadingCountries, setIsLoadingCountries] = useState(true)
+  const [isLoadingOperators, setIsLoadingOperators] = useState(false)
+  const [isCheckingKYC, setIsCheckingKYC] = useState(false)
+  const [kycData, setKycData] = useState<KYCData | null>(null)
 
+  // Chargement des pays
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const response = await fetch("https://api-akiba-1.onrender.com/api/mypvit/countries");
-        const data = await response.json();
+        const response = await fetch(`${PAYMENT_API_URL}/api/mypvit/countries`)
+        const data = await response.json()
         if (data.success && data.data) {
-          setCountries(data.data.filter((country: Country) => country.status === true));
+          setCountries(data.data.filter((country: Country) => country.status === true))
         }
       } catch (error) {
-        console.error("Erreur chargement pays:", error);
+        console.error("Erreur chargement pays:", error)
+        toast({ title: "Erreur", description: "Impossible de charger la liste des pays", variant: "destructive" })
       } finally {
-        setIsLoadingCountries(false);
+        setIsLoadingCountries(false)
       }
-    };
-    fetchCountries();
-  }, []);
+    }
+    fetchCountries()
+  }, [])
 
+  // Chargement des opérateurs selon le pays
   useEffect(() => {
     const fetchOperators = async () => {
-      if (!selectedCountry) return;
-      setIsLoadingOperators(true);
+      if (!selectedCountry) {
+        setOperators([])
+        setSelectedOperator("")
+        onOperatorChange?.(null, null)
+        return
+      }
+      setIsLoadingOperators(true)
       try {
-        const response = await fetch(`https://api-akiba-1.onrender.com/api/mypvit/operators/${selectedCountry}`);
-        const data = await response.json();
+        const response = await fetch(`${PAYMENT_API_URL}/api/mypvit/operators/${selectedCountry}`)
+        const data = await response.json()
         if (data.success && data.data?.operators) {
-          const activeOps = data.data.operators.filter((op: Operator) => op.active === true);
-          setOperators(activeOps);
+          const activeOperators = data.data.operators.filter((op: Operator) => op.active === true)
+          setOperators(activeOperators)
+          setSelectedOperator("")
+          onOperatorChange?.(null, null)
+        } else {
+          setOperators([])
         }
       } catch (error) {
-        console.error("Erreur chargement opérateurs:", error);
+        console.error("Erreur chargement opérateurs:", error)
+        toast({ title: "Erreur", description: "Impossible de charger les opérateurs", variant: "destructive" })
       } finally {
-        setIsLoadingOperators(false);
+        setIsLoadingOperators(false)
       }
-    };
-    fetchOperators();
-  }, [selectedCountry]);
-
-  const requestSecret = async (operator: Operator) => {
-    if (!operator) return;
-    const token = getToken();
-    if (!token) return;
-
-    setIsLoadingSecret(true);
-    try {
-      const secret = await renewSecretForOperator("GIMAC", GIMAC_ACCOUNT_CODE, token);
-      if (secret) {
-        setGimacSecretKey(secret);
-        onSecretReady?.(secret);
-        toast({
-          title: "Clé GIMAC générée",
-          description: "La clé de sécurité a été générée avec succès.",
-        });
-      }
-    } catch (error) {
-      console.error("Erreur génération clé:", error);
-    } finally {
-      setIsLoadingSecret(false);
     }
-  };
+    fetchOperators()
+  }, [selectedCountry])
 
-  const handleOperatorSelect = async (operator: Operator) => {
-    setSelectedOperator(operator);
-    await requestSecret(operator);
-  };
-
+  // Vérification KYC sur le numéro
   useEffect(() => {
-    const isValid = !!selectedOperator && !!identifier && !!gimacSecretKey;
-    onValidationChange?.(isValid);
-  }, [selectedOperator, identifier, gimacSecretKey, onValidationChange]);
+    const checkKYC = async () => {
+      const phone = mobileNumber.trim()
+      onPhoneChange?.(phone)
+      if (!phone || phone.replace(/\s/g, '').length < 9) {
+        setKycData(null)
+        onOperatorDetected?.(null, null)
+        return
+      }
+      setIsCheckingKYC(true)
+      try {
+        const response = await fetch(
+          `${PAYMENT_API_URL}/api/mypvit/kyc/marchant?customerAccountNumber=${encodeURIComponent(phone)}`
+        )
+        const data = await response.json()
+        if (data.success && data.data) {
+          const operatorName = data.data.detected_operator || data.data.operator || null
+          setKycData({
+            operator: operatorName,
+            full_name: data.data.full_name || null,
+            detected_operator: data.data.detected_operator
+          })
+          onOperatorDetected?.(operatorName, data.data.full_name || null)
+        } else {
+          setKycData(null)
+          onOperatorDetected?.(null, null)
+        }
+      } catch (error) {
+        console.error("Erreur KYC:", error)
+        setKycData(null)
+        onOperatorDetected?.(null, null)
+      } finally {
+        setIsCheckingKYC(false)
+      }
+    }
+
+    const timeoutId = setTimeout(checkKYC, 500)
+    return () => clearTimeout(timeoutId)
+  }, [mobileNumber])
+
+  const handleOperatorSelect = (code: string) => {
+    setSelectedOperator(code)
+    const found = operators.find(op => op.code === code)
+    onOperatorChange?.(code || null, found?.name || null)
+  }
+
+  const formatPhoneNumber = (value: string) => {
+    const cleaned = value.replace(/\D/g, '')
+    if (cleaned.length <= 2) return cleaned
+    if (cleaned.length <= 5) return `${cleaned.slice(0, 2)} ${cleaned.slice(2)}`
+    if (cleaned.length <= 8) return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5)}`
+    return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 8)} ${cleaned.slice(8, 10)}`
+  }
 
   return (
-    <div className="mt-6 space-y-5">
+    <div className="space-y-5 animate-in slide-in-from-top-2 duration-300">
+      {/* Pays */}
       <div className="space-y-2">
         <Label className="text-sm font-semibold flex items-center gap-2">
           <Globe className="h-4 w-4 text-primary" />
@@ -481,204 +375,149 @@ function GIMACInputs({
         {isLoadingCountries ? (
           <div className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg bg-gray-50">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <span className="ml-2 text-sm">Chargement...</span>
+            <span className="ml-2 text-sm text-muted-foreground">Chargement des pays...</span>
           </div>
         ) : (
           <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-            <SelectTrigger className="h-11">
+            <SelectTrigger className="h-11 bg-white border-gray-200 hover:border-primary/50 transition-colors">
               <SelectValue placeholder="Sélectionnez votre pays" />
             </SelectTrigger>
-            <SelectContent>
-              {countries.map((country) => (
-                <SelectItem key={country.iso_code} value={country.iso_code}>
-                  {country.name}
-                </SelectItem>
-              ))}
+            <SelectContent className="max-h-60">
+              {countries.length > 0 ? (
+                countries.map((country) => (
+                  <SelectItem key={country.iso_code} value={country.iso_code}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{country.name}</span>
+                      <span className="text-xs text-muted-foreground">{country.iso_code}</span>
+                    </div>
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="no-countries" disabled>Aucun pays disponible</SelectItem>
+              )}
             </SelectContent>
           </Select>
         )}
       </div>
 
+      {/* Opérateur — affiché seulement après sélection du pays */}
       {selectedCountry && (
-        <div className="space-y-2">
+        <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
           <Label className="text-sm font-semibold flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-primary" />
-            Opérateur GIMAC
+            <Smartphone className="h-4 w-4 text-primary" />
+            Opérateur Mobile Money
           </Label>
           {isLoadingOperators ? (
             <div className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg bg-gray-50">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="ml-2 text-sm">Chargement des opérateurs...</span>
+              <span className="ml-2 text-sm text-muted-foreground">Chargement des opérateurs...</span>
             </div>
-          ) : selectedOperator ? (
-            <div className="rounded-xl border border-primary/40 bg-primary/5 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold">{selectedOperator.name}</p>
-                  <p className="text-xs text-muted-foreground">{selectedOperator.provider}</p>
-                </div>
-                <Button size="sm" variant="ghost" onClick={() => setSelectedOperator(null)}>
-                  Changer
-                </Button>
-              </div>
-            </div>
+          ) : operators.length > 0 ? (
+            <Select value={selectedOperator} onValueChange={handleOperatorSelect}>
+              <SelectTrigger className="h-11 bg-white border-gray-200 hover:border-primary/50 transition-colors">
+                <SelectValue placeholder="Sélectionnez votre opérateur" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {operators.map((operator) => (
+                  <SelectItem key={operator.code} value={operator.code}>
+                    <div className="flex flex-col py-1">
+                      <span className="font-medium">{operator.name}</span>
+                      <span className="text-xs text-muted-foreground">{operator.provider}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           ) : (
-            <div className="grid grid-cols-1 gap-3">
-              {operators.map((operator) => (
-                <div
-                  key={operator.code}
-                  onClick={() => handleOperatorSelect(operator)}
-                  className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:border-primary hover:bg-primary/5 transition-all"
-                >
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Building2 className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">{operator.name}</p>
-                    <p className="text-xs text-muted-foreground">{operator.provider}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="p-4 text-center text-sm text-muted-foreground border rounded-lg bg-gray-50">
+              Aucun opérateur disponible pour ce pays
             </div>
           )}
         </div>
       )}
 
+      {/* Numéro de téléphone — toujours visible */}
+      <div className="space-y-2">
+        <Label htmlFor="mobileNumber">Numéro de téléphone Mobile Money</Label>
+        <Input
+          id="mobileNumber"
+          value={mobileNumber}
+          onChange={(e) => setMobileNumber(formatPhoneNumber(e.target.value))}
+          placeholder="07 XX XXX XXX"
+          className="h-11 bg-white"
+        />
+        {isCheckingKYC && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Vérification du numéro...
+          </p>
+        )}
+        {kycData?.operator && (
+          <p className="text-xs text-green-600 flex items-center gap-1">
+            <Check className="h-3 w-3" />
+            Opérateur détecté : {kycData.operator}
+            {kycData.full_name && ` — ${kycData.full_name}`}
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground flex items-center gap-1">
+          <Phone className="h-3 w-3" />
+          Vous recevrez une demande de paiement sur votre téléphone
+        </p>
+      </div>
+
+      {/* Badge récapitulatif opérateur sélectionné */}
       {selectedOperator && (
-        <>
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">Type d'identifiant</Label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={identifierType === "phone"}
-                  onChange={() => setIdentifierType("phone")}
-                  className="w-4 h-4 text-primary"
-                />
-                <span className="text-sm">Numéro de téléphone</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={identifierType === "card"}
-                  onChange={() => setIdentifierType("card")}
-                  className="w-4 h-4 text-primary"
-                />
-                <span className="text-sm">Numéro de carte</span>
-              </label>
-            </div>
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 border border-green-100 animate-in fade-in duration-300">
+          <div className="flex items-start gap-2">
+            <Award className="h-4 w-4 text-green-600 mt-0.5" />
+            <p className="text-xs text-green-800">
+              Paiement sécurisé via {operators.find(op => op.code === selectedOperator)?.provider || "GIMAC"}.
+              Des frais de transaction peuvent s'appliquer selon votre opérateur.
+            </p>
           </div>
-
-          <div className="space-y-2">
-            <Label>{identifierType === "phone" ? "Numéro de téléphone" : "Numéro de carte"}</Label>
-            <Input
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              placeholder={identifierType === "phone" ? "+241 06 00 00 00" : "1234 5678 9012 3456"}
-              className="h-11"
-            />
-          </div>
-
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <div>
-              <p>Clé secrète GIMAC</p>
-              <p className="font-mono text-sm text-gray-900">
-                {gimacSecretKey ? `${gimacSecretKey.substring(0, 10)}...` : "Non générée"}
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => requestSecret(selectedOperator)}
-              disabled={isLoadingSecret}
-            >
-              {isLoadingSecret ? <Loader2 className="h-4 w-4 animate-spin" /> : "Générer la clé"}
-            </Button>
-          </div>
-
-          {amount && amount > 0 && (
-            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-              <p className="text-sm font-medium text-blue-800">
-                Montant à payer : {amount.toLocaleString()} FCFA
-              </p>
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
-  );
+  )
 }
 
-// --- Composant PaymentStatusModal ---
-function PaymentStatusModal({ 
-  isOpen, 
-  onClose, 
-  status, 
-  message, 
-  transactionId, 
-  onSuccess, 
-  onRetry 
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  status: 'pending' | 'success' | 'failed';
-  message: string;
-  transactionId: string | null;
-  onSuccess: () => void;
-  onRetry?: () => void;
+// --- Composant QRCodeModal ---
+function QRCodeModal({ isOpen, onClose, qrCodeUrl, amount, orderNumber, orderId, onPaymentSuccess }: {
+  isOpen: boolean
+  onClose: () => void
+  qrCodeUrl: string | null
+  amount: number
+  orderNumber: string | null
+  orderId: string | null
+  onPaymentSuccess: () => void
 }) {
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [checkCount, setCheckCount] = useState(0);
-
-  const checkPaymentStatus = async () => {
-    if (!transactionId) return;
-
-    try {
-      const secretKey = getSecretKeyForAccount(GIMAC_ACCOUNT_CODE);
-      if (!secretKey) return;
-
-      const response = await fetch(
-        `/api/mypvit/status?transactionId=${transactionId}&accountOperationCode=${GIMAC_ACCOUNT_CODE}&transactionOperation=PAYMENT`,
-        {
-          headers: {
-            "X-Secret": secretKey,
-          },
-        }
-      );
-      const data = await response.json();
-
-      if (data.success && data.data?.status === "SUCCESS") {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        onSuccess();
-        onClose();
-      } else if (checkCount >= 12) {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        setCheckCount(0);
-      } else {
-        setCheckCount(prev => prev + 1);
-      }
-    } catch (error) {
-      console.error("Erreur vérification:", error);
-    }
-  };
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    if (!isOpen || status !== 'pending') {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
+    if (!isOpen) {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+      setPaymentConfirmed(false)
+      return
     }
+    intervalRef.current = setInterval(async () => {
+      if (!orderId) return
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/payment-status`)
+        const data = await response.json()
+        if (data.success && data.data?.is_paid) {
+          if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+          setPaymentConfirmed(true)
+          setTimeout(() => { onPaymentSuccess(); onClose() }, 2000)
+        }
+      } catch (error) {
+        console.error('Erreur vérification paiement:', error)
+      }
+    }, 5000)
+    return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null } }
+  }, [isOpen, orderId, onPaymentSuccess, onClose])
 
-    intervalRef.current = setInterval(checkPaymentStatus, 5000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isOpen, status, transactionId]);
-
-  if (status === 'success') {
+  if (paymentConfirmed) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-md">
@@ -689,36 +528,162 @@ function PaymentStatusModal({
             <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4 animate-bounce">
               <Check className="h-10 w-10 text-green-600" />
             </div>
-            <p className="text-muted-foreground">{message}</p>
+            <p className="text-muted-foreground mb-2">Commande #{orderNumber} confirmée</p>
+            <p className="text-sm text-muted-foreground">Vous recevrez un email de confirmation</p>
           </div>
           <Button onClick={onClose} className="w-full">Continuer</Button>
         </DialogContent>
       </Dialog>
-    );
+    )
   }
 
-  if (status === 'failed') {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-center text-2xl">Scanner le QR Code</DialogTitle>
+          <DialogDescription className="text-center">
+            Scannez ce code avec votre application Mobile Money
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col items-center py-6">
+          {qrCodeUrl ? (
+            <div className="bg-white p-4 rounded-xl shadow-lg border-2 border-primary/20">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrCodeUrl} alt="QR Code de paiement" className="w-64 h-64 object-contain" />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center w-64 h-64 bg-gray-100 rounded-xl">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+          )}
+          <div className="mt-6 w-full space-y-3 text-center">
+            <div>
+              <p className="text-sm text-muted-foreground">Montant à payer</p>
+              <p className="text-3xl font-bold text-primary">{amount.toLocaleString()} FCFA</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Vérification automatique du paiement en cours...</p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// --- Composant PaymentStatusModal ---
+function PaymentStatusModal({ isOpen, onClose, status, message, transactionId, orderId, onSuccess, onRetry }: {
+  isOpen: boolean
+  onClose: () => void
+  status: 'pending' | 'success' | 'failed'
+  message: string
+  transactionId: string | null
+  orderId: string | null
+  onSuccess: () => void
+  onRetry?: () => void
+}) {
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [checkCount, setCheckCount] = useState(0)
+  const [localStatus, setLocalStatus] = useState<'pending' | 'success' | 'failed'>(status)
+  const [localMessage, setLocalMessage] = useState(message)
+
+  useEffect(() => { setLocalStatus(status); setLocalMessage(message) }, [status, message])
+
+  useEffect(() => {
+    if (!isOpen || localStatus !== 'pending') {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+      return
+    }
+
+    const checkPayment = async () => {
+      try {
+        if (orderId) {
+          const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/payment-status`)
+          const data = await response.json()
+          if (data.success && data.data?.is_paid) {
+            if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+            setLocalStatus('success')
+            setLocalMessage('Paiement confirmé avec succès!')
+            setTimeout(() => { onSuccess(); onClose() }, 1500)
+            return
+          }
+        }
+
+        if (transactionId) {
+          const operatorCode = "airtel"
+          const directResponse = await fetch(
+            `${PAYMENT_API_URL}/api/mypvit/transaction/status?transactionId=${transactionId}&accountOperationCode=${operatorCode}&transactionOperation=PAYMENT`
+          )
+          const directData = await directResponse.json()
+          if (directData.success && directData.data?.is_success) {
+            if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+            setLocalStatus('success')
+            setLocalMessage('Paiement confirmé avec succès!')
+            setTimeout(() => { onSuccess(); onClose() }, 1500)
+            return
+          }
+        }
+
+        setCheckCount(prev => prev + 1)
+        if (checkCount >= 12) {
+          if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+          setLocalStatus('failed')
+          setLocalMessage('Le délai de vérification a expiré. Veuillez vérifier le statut de votre commande plus tard.')
+        }
+      } catch (error) {
+        console.error('Erreur vérification:', error)
+        setCheckCount(prev => prev + 1)
+      }
+    }
+
+    checkPayment()
+    intervalRef.current = setInterval(checkPayment, 5000)
+    return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null } }
+  }, [isOpen, localStatus, transactionId, orderId, checkCount, onSuccess, onClose])
+
+  if (localStatus === 'success') {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-center text-2xl text-red-600">Paiement échoué</DialogTitle>
+            <DialogTitle className="text-center text-2xl">Paiement confirmé !</DialogTitle>
           </DialogHeader>
           <div className="py-8 text-center">
-            <div className="h-20 w-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-              <X className="h-10 w-10 text-red-600" />
+            <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4 animate-bounce">
+              <Check className="h-10 w-10 text-green-600" />
             </div>
-            <p className="text-muted-foreground mb-2">{message}</p>
+            <p className="text-muted-foreground mb-2">{localMessage}</p>
+          </div>
+          <Button onClick={onClose} className="w-full">Continuer</Button>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  if (localStatus === 'failed') {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-2xl text-yellow-600">Paiement en attente</DialogTitle>
+          </DialogHeader>
+          <div className="py-8 text-center">
+            <div className="h-20 w-20 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
+              <Clock className="h-10 w-10 text-yellow-600" />
+            </div>
+            <p className="text-muted-foreground mb-2">{localMessage}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Vous pouvez vérifier le statut de votre commande dans votre espace client.
+            </p>
             <div className="flex gap-3 mt-6">
               <Button onClick={onClose} variant="outline" className="flex-1">Fermer</Button>
               {onRetry && (
-                <Button onClick={() => { onRetry(); onClose(); }} className="flex-1">Réessayer</Button>
+                <Button onClick={() => { onRetry(); onClose() }} className="flex-1">Réessayer</Button>
               )}
             </div>
           </div>
         </DialogContent>
       </Dialog>
-    );
+    )
   }
 
   return (
@@ -732,40 +697,56 @@ function PaymentStatusModal({
         </DialogHeader>
         <div className="py-8 text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">{message}</p>
-          <p className="text-xs text-muted-foreground mt-2">Vérification automatique...</p>
-          <Button variant="outline" size="sm" className="mt-4" onClick={onClose}>
+          <p className="text-muted-foreground">{localMessage}</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Vérification automatique... ({Math.floor(checkCount * 5)}s)
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={() => {
+              if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+              onClose()
+            }}
+          >
             Annuler
           </Button>
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
 // --- Composant principal ---
 export default function CheckoutPage() {
-  const { items, subtotal, clearCart } = useCart();
-  const { user } = useAuth();
-  const [paymentMethod, setPaymentMethod] = useState(paymentMethods[0].id);
-  const [deliveryMethod, setDeliveryMethod] = useState(deliveryMethods[0].id);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
-  const [orderNumber, setOrderNumber] = useState("");
-  const [showQRModal, setShowQRModal] = useState(false);
-  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
-  
-  const [isMobileValid, setIsMobileValid] = useState(false);
-  const [isGimacValid, setIsGimacValid] = useState(false);
-  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
-  const [gimacSecret, setGimacSecret] = useState<string>("");
-  
+  const { items, subtotal, clearCart } = useCart()
+  const { user } = useAuth()
+
+  const [paymentMethod, setPaymentMethod] = useState(paymentMethods[0].id)
+  const [deliveryMethod, setDeliveryMethod] = useState(deliveryMethods[0].id)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isComplete, setIsComplete] = useState(false)
+  const [orderNumber, setOrderNumber] = useState("")
+  const [orderId, setOrderId] = useState("")
+  const [showQRModal, setShowQRModal] = useState(false)
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
+  const [countries, setCountries] = useState<Country[]>([])
+  const [isLoadingCountries, setIsLoadingCountries] = useState(true)
+
+  // ✅ État centralisé pour le Mobile Money (opérateur + numéro)
+  const [mobilePhone, setMobilePhone] = useState<string>("")
+  const [mobileOperatorCode, setMobileOperatorCode] = useState<string | null>(null)
+  const [mobileOperatorName, setMobileOperatorName] = useState<string | null>(null)
+  const [detectedFullName, setDetectedFullName] = useState<string | null>(null)
+
   const [paymentStatus, setPaymentStatus] = useState<{
-    show: boolean;
-    status: 'pending' | 'success' | 'failed';
-    message: string;
-    transactionId: string | null;
-  }>({ show: false, status: 'pending', message: '', transactionId: null });
+    show: boolean
+    status: 'pending' | 'success' | 'failed'
+    message: string
+    transactionId: string | null
+    orderId: string | null
+  }>({ show: false, status: 'pending', message: '', transactionId: null, orderId: null })
 
   const [shippingInfo, setShippingInfo] = useState({
     fullName: "",
@@ -774,210 +755,210 @@ export default function CheckoutPage() {
     address: "",
     city: "",
     notes: "",
-  });
+  })
 
-  const selectedDelivery = deliveryMethods.find((d) => d.id === deliveryMethod) || deliveryMethods[0];
-  const total = subtotal + selectedDelivery.price;
-  const isDeliverySelected = deliveryMethod !== "pickup";
-  const isFormValid = paymentMethod === "mobile" ? isMobileValid : paymentMethod === "gimac" ? isGimacValid : true;
+  const selectedDelivery = deliveryMethods.find((d) => d.id === deliveryMethod) || deliveryMethods[0]
+  const total = subtotal + selectedDelivery.price
+  const isDeliverySelected = deliveryMethod !== "pickup"
+
+  // Chargement des pays pour le paiement par carte
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch(`${PAYMENT_API_URL}/api/mypvit/countries`)
+        const data = await response.json()
+        if (data.success && data.data) {
+          setCountries(data.data.filter((country: Country) => country.status === true))
+        }
+      } catch (error) {
+        console.error("Erreur chargement pays:", error)
+        toast({ title: "Erreur", description: "Impossible de charger la liste des pays", variant: "destructive" })
+      } finally {
+        setIsLoadingCountries(false)
+      }
+    }
+    fetchCountries()
+  }, [])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setShippingInfo((prev) => ({ ...prev, [name]: value }));
-  };
+    const { name, value } = e.target
+    setShippingInfo((prev) => ({ ...prev, [name]: value }))
+  }
 
-  const processPayment = async (orderData: any): Promise<{ success: boolean; transactionId?: string; error?: string }> => {
-    if (paymentMethod === "mobile" && customerInfo) {
-      const token = getToken();
-      const secretKey = getSecretKeyForAccount(customerInfo.account_code);
+  // ✅ Callbacks remontés depuis MobileInputs
+  const handleMobilePhoneChange = (phone: string) => {
+    setMobilePhone(phone)
+    // Sync aussi dans shippingInfo pour la validation
+    setShippingInfo(prev => ({ ...prev, phone }))
+  }
 
-      if (!secretKey) {
-        return { success: false, error: "Clé secrète non disponible" };
-      }
+  const handleMobileOperatorChange = (operatorCode: string | null, operatorName: string | null) => {
+    setMobileOperatorCode(operatorCode)
+    setMobileOperatorName(operatorName)
+  }
 
-      const payload = {
-        amount: total,
-        customer_account_number: shippingInfo.phone,
-        merchant_operation_account_code: customerInfo.account_code,
-        transaction_type: "PAYMENT",
-        operator_code: customerInfo.operator,
-        callback_url_code: "1MAKL",
-        free_info: `Paiement commande ${orderData.data.orderNumber}`,
-        client_id: user?.id,
-      };
-
-      const response = await fetch("/api/mypvit/rest", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          "X-Secret": secretKey,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-      if (data.success && data.data) {
-        return { success: true, transactionId: data.data.merchant_reference_id || data.data.reference_id };
-      }
-      return { success: false, error: data.message || "Échec du paiement" };
+  const handleMobileOperatorDetected = (operator: string | null, fullName: string | null) => {
+    setDetectedFullName(fullName)
+    // Si le nom n'est pas encore rempli, on le pré-remplit avec le nom KYC
+    if (fullName && !shippingInfo.fullName) {
+      setShippingInfo(prev => ({ ...prev, fullName }))
     }
+  }
 
-    if (paymentMethod === "gimac" && gimacSecret) {
-      const token = getToken();
-      
-      const payload = {
-        amount: total,
-        customer_account_number: shippingInfo.phone,
-        merchant_operation_account_code: GIMAC_ACCOUNT_CODE,
-        transaction_type: "PAYMENT",
-        operator_code: "GIMAC",
-        callback_url_code: "1MAKL",
-        free_info: `Paiement commande ${orderData.data.orderNumber}`,
-        client_id: user?.id,
-      };
+  const handlePaymentSuccess = () => {
+    setIsComplete(true)
+    clearCart()
+    toast({ title: "Commande confirmée !", description: `Votre commande #${orderNumber} a été payée avec succès.` })
+  }
 
-      const response = await fetch("/api/mypvit/rest", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          "X-Secret": gimacSecret,
-        },
-        body: JSON.stringify(payload),
-      });
+  const handlePaymentRetry = () => {
+    handleSubmit(new Event('submit') as any)
+  }
 
-      const data = await response.json();
-      if (data.success && data.data) {
-        return { success: true, transactionId: data.data.merchant_reference_id || data.data.reference_id };
-      }
-      return { success: false, error: data.message || "Échec du paiement GIMAC" };
-    }
+  const handleQRPaymentSuccess = () => {
+    setIsComplete(true)
+    clearCart()
+    toast({ title: "Commande confirmée !", description: `Votre commande #${orderNumber} a été payée avec succès.` })
+  }
 
-    if (paymentMethod === "qr") {
-      const qrUrl = `https://api-akiba-1.onrender.com/api/mypvit/qr-code/direct/generate?amount=${total}&payment_api_key_public=pk_1773325888803_dt8diavuh3h&payment_api_key_secret=sk_1773325888803_qt015a3cr5`;
-      setQrCodeUrl(qrUrl);
-      setShowQRModal(true);
-      return { success: true };
-    }
-
-    return { success: false, error: "Mode de paiement non supporté" };
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const validateForm = () => {
     if (!shippingInfo.fullName.trim()) {
-      toast({ title: "Champ requis", description: "Veuillez saisir votre nom complet", variant: "destructive" });
-      return;
+      toast({ title: "Champ requis", description: "Veuillez saisir votre nom complet", variant: "destructive" })
+      return false
     }
     if (!shippingInfo.email.trim()) {
-      toast({ title: "Champ requis", description: "Veuillez saisir votre email", variant: "destructive" });
-      return;
+      toast({ title: "Champ requis", description: "Veuillez saisir votre email", variant: "destructive" })
+      return false
     }
-    if (!shippingInfo.phone.trim()) {
-      toast({ title: "Champ requis", description: "Veuillez saisir votre numéro de téléphone", variant: "destructive" });
-      return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingInfo.email)) {
+      toast({ title: "Email invalide", description: "Veuillez saisir un email valide", variant: "destructive" })
+      return false
+    }
+    // Pour Mobile Money, on valide le numéro mobile ; sinon le champ phone standard
+    if (paymentMethod === "mobile") {
+      if (!mobilePhone || mobilePhone.replace(/\s/g, '').length < 9) {
+        toast({ title: "Champ requis", description: "Veuillez saisir votre numéro Mobile Money", variant: "destructive" })
+        return false
+      }
+    } else {
+      if (!shippingInfo.phone.trim()) {
+        toast({ title: "Champ requis", description: "Veuillez saisir votre numéro de téléphone", variant: "destructive" })
+        return false
+      }
     }
     if (isDeliverySelected && !shippingInfo.address.trim()) {
-      toast({ title: "Champ requis", description: "Veuillez saisir votre adresse de livraison", variant: "destructive" });
-      return;
+      toast({ title: "Champ requis", description: "Veuillez saisir votre adresse de livraison", variant: "destructive" })
+      return false
     }
-    if (!isFormValid) {
-      toast({ title: "Formulaire incomplet", description: "Veuillez compléter toutes les informations de paiement", variant: "destructive" });
-      return;
-    }
+    return true
+  }
 
-    setIsSubmitting(true);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validateForm()) return
+    setIsSubmitting(true)
 
     try {
-      const deliveryAddress = isDeliverySelected ? `${shippingInfo.address}, ${shippingInfo.city}` : "Retrait en magasin";
+      let userId: string | null = null
+      try {
+        const storedUser = localStorage.getItem("user")
+        if (storedUser) {
+          const userData = JSON.parse(storedUser)
+          userId = userData.id
+        }
+      } catch (e) {
+        console.error("Erreur parsing user:", e)
+      }
 
-      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/orders", {
+      const deliveryAddress = isDeliverySelected
+        ? `${shippingInfo.address}, ${shippingInfo.city}`
+        : "Retrait en magasin"
+
+      // ✅ Le numéro de téléphone envoyé à l'API dépend du mode de paiement
+      const customerPhone = paymentMethod === "mobile" ? mobilePhone : shippingInfo.phone
+
+      const response = await fetch(`${API_BASE_URL}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: user?.id,
-          customerAccountNumber: shippingInfo.phone,
+          userId,
+          items: items.map(item => ({
+            productId: item.id,
+            quantity: item.quantity,
+            price: item.price
+          })),
+          customerAccountNumber: customerPhone,
+          // ✅ Opérateur Mobile Money envoyé à l'API (null pour les autres méthodes)
+          mobileOperatorCode: paymentMethod === "mobile" ? mobileOperatorCode : null,
+          mobileOperatorName: paymentMethod === "mobile" ? mobileOperatorName : null,
           shippingAddress: deliveryAddress,
           billingAddress: deliveryAddress,
-          deliveryMethod: deliveryMethod,
+          deliveryMethod,
           deliveryPrice: selectedDelivery.price,
           notes: shippingInfo.notes || null,
           customerName: shippingInfo.fullName,
           customerEmail: shippingInfo.email,
+          paymentMethod,
+          totalAmount: total
         }),
-      });
+      })
 
-      const orderData = await response.json();
+      const orderData = await response.json()
 
       if (orderData.success) {
-        setOrderNumber(orderData.data.orderNumber);
+        const newOrderNumber = orderData.data.orderNumber || orderData.data.id
+        setOrderNumber(newOrderNumber)
+        setOrderId(newOrderNumber)
 
-        const paymentResult = await processPayment(orderData);
-
-        if (paymentResult.success) {
-          if (paymentMethod === "qr") {
-            setIsSubmitting(false);
-          } else if (paymentResult.transactionId) {
+        if (orderData.data.payment && orderData.data.payment.success) {
+          if (orderData.data.payment.status === 'success') {
+            setIsComplete(true)
+            clearCart()
+            toast({ title: "Commande confirmée !", description: `Votre commande #${newOrderNumber} a été payée avec succès.` })
+          } else {
             setPaymentStatus({
               show: true,
               status: 'pending',
-              message: 'Paiement en cours de traitement...',
-              transactionId: paymentResult.transactionId,
-            });
-            setIsSubmitting(false);
-          } else {
-            setIsComplete(true);
-            clearCart();
-            toast({
-              title: "Commande confirmée !",
-              description: `Votre commande #${orderData.data.orderNumber} a été créée avec succès.`,
-            });
-            setIsSubmitting(false);
+              message: orderData.data.payment.message || 'Paiement en cours de traitement...',
+              transactionId: orderData.data.payment.reference_id || null,
+              orderId: newOrderNumber
+            })
           }
+        } else if (paymentMethod === "qr") {
+          const qrUrl = `${PAYMENT_API_URL}/api/mypvit/qr-code/direct/generate?amount=${total}&payment_api_key_public=${process.env.NEXT_PUBLIC_PAYMENT_PUBLIC_KEY}&payment_api_key_secret=${process.env.NEXT_PUBLIC_PAYMENT_SECRET_KEY}`
+          setQrCodeUrl(qrUrl)
+          setShowQRModal(true)
+        } else if (paymentMethod === "mobile") {
+          setPaymentStatus({
+            show: true,
+            status: 'pending',
+            message: `En attente de confirmation du paiement via ${mobileOperatorName || "Mobile Money"}...`,
+            transactionId: orderData.data.payment?.reference_id || null,
+            orderId: newOrderNumber
+          })
         } else {
           setPaymentStatus({
             show: true,
-            status: 'failed',
-            message: paymentResult.error || 'Le paiement n\'a pas pu être initié',
+            status: 'pending',
+            message: 'Paiement en attente de validation...',
             transactionId: null,
-          });
-          setIsSubmitting(false);
+            orderId: newOrderNumber
+          })
         }
       } else {
-        toast({ title: "Erreur", description: orderData.message || "Une erreur est survenue", variant: "destructive" });
-        setIsSubmitting(false);
+        toast({
+          title: "Erreur",
+          description: orderData.message || "Une erreur est survenue lors de la création de la commande",
+          variant: "destructive",
+        })
       }
     } catch (error) {
-      console.error("Erreur:", error);
-      toast({ title: "Erreur", description: "Impossible de contacter le serveur", variant: "destructive" });
-      setIsSubmitting(false);
+      console.error("Erreur:", error)
+      toast({ title: "Erreur", description: "Impossible de contacter le serveur. Veuillez réessayer.", variant: "destructive" })
+    } finally {
+      setIsSubmitting(false)
     }
-  };
-
-  const handlePaymentSuccess = () => {
-    setIsComplete(true);
-    clearCart();
-    toast({
-      title: "Commande confirmée !",
-      description: `Votre commande #${orderNumber} a été payée avec succès.`,
-    });
-  };
-
-  const handlePaymentRetry = () => {
-    handleSubmit(new Event('submit') as any);
-  };
-
-  const handleQRCodeClose = () => {
-    setShowQRModal(false);
-    setIsComplete(true);
-    clearCart();
-    toast({
-      title: "Commande confirmée !",
-      description: `Votre commande #${orderNumber} a été créée avec succès.`,
-    });
-  };
+  }
 
   if (isComplete) {
     return (
@@ -1008,16 +989,12 @@ export default function CheckoutPage() {
             )}
           </div>
           <div className="space-y-3">
-            <Link href="/">
-              <Button size="lg" className="w-full">Retour à l'accueil</Button>
-            </Link>
-            <Link href="/commandes">
-              <Button variant="outline" size="lg" className="w-full">Voir mes commandes</Button>
-            </Link>
+            <Link href="/"><Button size="lg" className="w-full">Retour à l'accueil</Button></Link>
+            <Link href="/commandes"><Button variant="outline" size="lg" className="w-full">Voir mes commandes</Button></Link>
           </div>
         </div>
       </main>
-    );
+    )
   }
 
   return (
@@ -1054,7 +1031,8 @@ export default function CheckoutPage() {
           {/* Formulaire */}
           <div className="lg:col-span-2 space-y-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Informations de livraison */}
+
+              {/* Informations personnelles */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
                 <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                   <div className="flex items-center gap-2">
@@ -1066,28 +1044,73 @@ export default function CheckoutPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Nom complet</Label>
-                      <Input name="fullName" value={shippingInfo.fullName} onChange={handleInputChange} placeholder="Jean Dupont" className="h-11" required />
+                      <Input
+                        name="fullName"
+                        value={shippingInfo.fullName}
+                        onChange={handleInputChange}
+                        placeholder="Jean Dupont"
+                        className="h-11"
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Email</Label>
-                      <Input name="email" type="email" value={shippingInfo.email} onChange={handleInputChange} placeholder="jean@example.com" className="h-11" required />
+                      <Input
+                        name="email"
+                        type="email"
+                        value={shippingInfo.email}
+                        onChange={handleInputChange}
+                        placeholder="jean@example.com"
+                        className="h-11"
+                        required
+                      />
                     </div>
                   </div>
 
+                  {/* ✅ Téléphone : simple si pas Mobile Money, sinon MobileInputs */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Téléphone</Label>
-                    <Input name="phone" value={shippingInfo.phone} onChange={handleInputChange} placeholder="+225 07 XX XX XX XX" className="h-11" required />
+                    {paymentMethod === "mobile" ? (
+                      // En mode Mobile Money, MobileInputs gère pays + opérateur + numéro
+                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 text-sm text-blue-700 flex items-center gap-2">
+                        <Smartphone className="h-4 w-4 flex-shrink-0" />
+                        Le numéro Mobile Money saisi ci-dessous sera utilisé comme téléphone de contact.
+                      </div>
+                    ) : (
+                      <Input
+                        name="phone"
+                        value={shippingInfo.phone}
+                        onChange={handleInputChange}
+                        placeholder="07 XX XX XX XX"
+                        className="h-11"
+                        required
+                      />
+                    )}
                   </div>
 
                   {isDeliverySelected && (
                     <>
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Adresse de livraison</Label>
-                        <Input name="address" value={shippingInfo.address} onChange={handleInputChange} placeholder="Rue des Jardins, Cocody" className="h-11" required />
+                        <Input
+                          name="address"
+                          value={shippingInfo.address}
+                          onChange={handleInputChange}
+                          placeholder="Rue des Jardins, Cocody"
+                          className="h-11"
+                          required
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Ville</Label>
-                        <Input name="city" value={shippingInfo.city} onChange={handleInputChange} placeholder="Abidjan" className="h-11" required />
+                        <Input
+                          name="city"
+                          value={shippingInfo.city}
+                          onChange={handleInputChange}
+                          placeholder="Abidjan"
+                          className="h-11"
+                          required
+                        />
                       </div>
                     </>
                   )}
@@ -1106,7 +1129,13 @@ export default function CheckoutPage() {
 
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Notes (optionnel)</Label>
-                    <Textarea name="notes" value={shippingInfo.notes} onChange={handleInputChange} placeholder={isDeliverySelected ? "Instructions de livraison..." : "Informations supplémentaires..."} rows={3} />
+                    <Textarea
+                      name="notes"
+                      value={shippingInfo.notes}
+                      onChange={handleInputChange}
+                      placeholder={isDeliverySelected ? "Instructions de livraison..." : "Informations supplémentaires..."}
+                      rows={3}
+                    />
                   </div>
                 </div>
               </div>
@@ -1123,7 +1152,7 @@ export default function CheckoutPage() {
                   <RadioGroup value={deliveryMethod} onValueChange={setDeliveryMethod}>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {deliveryMethods.map((method) => {
-                        const Icon = method.icon;
+                        const Icon = method.icon
                         return (
                           <div
                             key={method.id}
@@ -1154,14 +1183,14 @@ export default function CheckoutPage() {
                               <Icon className="h-4 w-4 text-muted-foreground mt-1" />
                             </div>
                           </div>
-                        );
+                        )
                       })}
                     </div>
                   </RadioGroup>
                 </div>
               </div>
 
-              {/* Mode de paiement */}
+              {/* Méthode de paiement */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
                 <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                   <div className="flex items-center gap-2">
@@ -1173,7 +1202,7 @@ export default function CheckoutPage() {
                   <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {paymentMethods.map((method) => {
-                        const Icon = method.icon;
+                        const Icon = method.icon
                         return (
                           <div
                             key={method.id}
@@ -1194,32 +1223,46 @@ export default function CheckoutPage() {
                               <p className="text-xs text-muted-foreground">{method.description}</p>
                             </div>
                           </div>
-                        );
+                        )
                       })}
                     </div>
                   </RadioGroup>
 
+                  {/* ✅ Carte bancaire */}
+                  {paymentMethod === "card" && (
+                    isLoadingCountries ? (
+                      <div className="mt-6 flex items-center justify-center p-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <span className="ml-2 text-sm">Chargement des pays...</span>
+                      </div>
+                    ) : (
+                      <CardInputs countries={countries} />
+                    )
+                  )}
+
+                  {/* ✅ Mobile Money — instance UNIQUE, remonte tout au parent */}
                   {paymentMethod === "mobile" && (
-                    <MobileMoneyInputs 
-                      onCustomerInfoChange={setCustomerInfo}
-                      onValidationChange={setIsMobileValid}
-                    />
+                    <div className="mt-6">
+                      <MobileInputs
+                        onPhoneChange={handleMobilePhoneChange}
+                        onOperatorChange={handleMobileOperatorChange}
+                        onOperatorDetected={handleMobileOperatorDetected}
+                      />
+                    </div>
                   )}
-                  
-                  {paymentMethod === "gimac" && (
-                    <GIMACInputs 
-                      onValidationChange={setIsGimacValid}
-                      onSecretReady={setGimacSecret}
-                      amount={total}
-                    />
-                  )}
-                  
+
+                  {/* QR Code */}
                   {paymentMethod === "qr" && (
-                    <div className="mt-6 p-4 bg-gray-50 rounded-lg text-center">
-                      <QrCode className="h-12 w-12 text-primary mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">
-                        Un QR code sera généré pour finaliser votre paiement.
-                      </p>
+                    <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center gap-3">
+                        <QrCode className="h-6 w-6 text-blue-600" />
+                        <div>
+                          <p className="font-medium text-blue-900">Paiement par QR Code</p>
+                          <p className="text-sm text-blue-700">
+                            Après validation, un QR code vous sera présenté à scanner avec votre application Mobile Money.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1229,7 +1272,7 @@ export default function CheckoutPage() {
                 type="submit"
                 size="lg"
                 className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300"
-                disabled={isSubmitting || !isFormValid}
+                disabled={isSubmitting}
               >
                 {isSubmitting ? (
                   <span className="flex items-center justify-center gap-2">
@@ -1251,7 +1294,6 @@ export default function CheckoutPage() {
                   <h2 className="text-lg font-semibold">Récapitulatif</h2>
                   <p className="text-sm text-muted-foreground mt-1">{items.length} article(s)</p>
                 </div>
-
                 <div className="p-6 space-y-4">
                   <div className="space-y-3 max-h-80 overflow-y-auto">
                     {items.map((item) => (
@@ -1282,7 +1324,7 @@ export default function CheckoutPage() {
                       {selectedDelivery.price === 0 ? (
                         <span className="font-medium text-green-600">Gratuit</span>
                       ) : (
-                        <span className="font-medium text-green-600">+{selectedDelivery.price.toLocaleString()} FCFA</span>
+                        <span className="font-medium">+{selectedDelivery.price.toLocaleString()} FCFA</span>
                       )}
                     </div>
                     <div className="border-t pt-3 mt-2">
@@ -1292,6 +1334,15 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* ✅ Récap opérateur Mobile Money dans le sidebar */}
+                  {paymentMethod === "mobile" && mobileOperatorName && (
+                    <div className="bg-green-50 rounded-lg p-3 border border-green-100 text-xs text-green-800 flex items-center gap-2">
+                      <Smartphone className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      Paiement via <strong>{mobileOperatorName}</strong>
+                      {mobilePhone && <> — {mobilePhone}</>}
+                    </div>
+                  )}
 
                   <div className="bg-primary/5 rounded-lg p-4 text-center">
                     <Shield className="h-5 w-5 text-primary mx-auto mb-2" />
@@ -1331,45 +1382,26 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* QR Code Modal */}
-      <Dialog open={showQRModal} onOpenChange={setShowQRModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-center text-2xl">Scanner le QR Code</DialogTitle>
-            <DialogDescription className="text-center">
-              Scannez ce code avec votre application Mobile Money
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col items-center py-6">
-            {qrCodeUrl ? (
-              <div className="bg-white p-4 rounded-xl shadow-lg border-2 border-primary/20">
-                <img src={qrCodeUrl} alt="QR Code de paiement" className="w-64 h-64 object-contain" />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center w-64 h-64 bg-gray-100 rounded-xl">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              </div>
-            )}
-            <div className="mt-6 w-full text-center">
-              <p className="text-2xl font-bold text-primary">{total.toLocaleString()} FCFA</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleQRCodeClose} className="w-full">J'ai payé</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <QRCodeModal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        qrCodeUrl={qrCodeUrl}
+        amount={total}
+        orderNumber={orderNumber}
+        orderId={orderId}
+        onPaymentSuccess={handleQRPaymentSuccess}
+      />
 
-      {/* Payment Status Modal */}
       <PaymentStatusModal
         isOpen={paymentStatus.show}
-        onClose={() => setPaymentStatus(prev => ({ ...prev, show: false }))}
+        onClose={() => setPaymentStatus({ show: false, status: 'pending', message: '', transactionId: null, orderId: null })}
         status={paymentStatus.status}
         message={paymentStatus.message}
         transactionId={paymentStatus.transactionId}
+        orderId={paymentStatus.orderId}
         onSuccess={handlePaymentSuccess}
         onRetry={handlePaymentRetry}
       />
     </main>
-  );
+  )
 }
