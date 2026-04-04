@@ -403,7 +403,7 @@ export default function MerchantDashboard() {
     }
   }
 
-  const BASE = "http://127.0.0.1:3333/api/merchant"
+  const BASE = "https://ecomerce-api-1-dp0w.onrender.com/api/merchant"
 
   // ─────────────────────────────────────────
   // Fetchers
