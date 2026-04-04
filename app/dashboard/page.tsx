@@ -241,11 +241,6 @@ export default function MerchantDashboard() {
   // ==================== CHARGEMENT DES DONNÉES ====================
   useEffect(() => {
     // ✅ CORRECTION ICI - Utiliser && au lieu de ||
-    const allowedRoles = ["marchant", "marchant", "marchant"]
-    if (!user || !allowedRoles.includes(user.role)) {
-      router.push("/")
-      return
-    }
     
     fetchAllData()
   }, [user])
