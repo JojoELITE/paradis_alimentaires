@@ -6,7 +6,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/components/ui/use-toast"
-import { Send, CheckCircle2 } from "lucide-react"
+import { Send, CheckCircle2, AlertCircle } from "lucide-react"
 
 const API_BASE = "https://ecomerce-api-aotc.onrender.com/api"
 
@@ -14,14 +14,20 @@ export default function Newsletter() {
   const [email, setEmail] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubscribed, setIsSubscribed] = useState(false)
+  const [apiMessage, setApiMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Réinitialiser le message
+    setApiMessage(null)
+    
     if (!email.trim()) {
+      const errorMsg = "Veuillez entrer une adresse email valide"
+      setApiMessage({ type: "error", text: errorMsg })
       toast({
         title: "Erreur",
-        description: "Veuillez entrer une adresse email valide",
+        description: errorMsg,
         variant: "destructive",
       })
       return
@@ -43,18 +49,27 @@ export default function Newsletter() {
 
       if (response.ok && data.success) {
         setIsSubscribed(true)
+        setApiMessage({ type: "success", text: data.message || "Merci de vous être inscrit à notre newsletter." })
         toast({
           title: "Inscription réussie !",
           description: data.message || "Merci de vous être inscrit à notre newsletter.",
         })
       } else {
-        throw new Error(data.message || "Une erreur est survenue")
+        const errorMsg = data.message || "Une erreur est survenue"
+        setApiMessage({ type: "error", text: errorMsg })
+        toast({
+          title: "Erreur",
+          description: errorMsg,
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Newsletter subscription error:", error)
+      const errorMsg = error instanceof Error ? error.message : "Impossible de s'inscrire. Veuillez réessayer."
+      setApiMessage({ type: "error", text: errorMsg })
       toast({
         title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible de s'inscrire. Veuillez réessayer.",
+        description: errorMsg,
         variant: "destructive",
       })
     } finally {
@@ -71,6 +86,24 @@ export default function Newsletter() {
             Inscrivez-vous à notre newsletter pour recevoir nos offres exclusives, nos nouveautés et nos conseils
             culinaires
           </p>
+
+          {/* Affichage du message de l'API */}
+          {apiMessage && (
+            <div 
+              className={`mb-6 p-4 rounded-lg flex items-center justify-center gap-2 ${
+                apiMessage.type === "success" 
+                  ? "bg-green-500/20 text-green-400 border border-green-500/50" 
+                  : "bg-red-500/20 text-red-400 border border-red-500/50"
+              }`}
+            >
+              {apiMessage.type === "success" ? (
+                <CheckCircle2 className="h-5 w-5" />
+              ) : (
+                <AlertCircle className="h-5 w-5" />
+              )}
+              <span>{apiMessage.text}</span>
+            </div>
+          )}
 
           {isSubscribed ? (
             <div className="flex flex-col items-center justify-center space-y-4 bg-white/10 rounded-lg p-8">
