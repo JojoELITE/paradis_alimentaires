@@ -85,7 +85,7 @@ export default function RegisterPage() {
         role,
       })
 
-      const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/client/register', {
+      const res = await fetch('https://ecomerce-api-aotc.onrender.com//api/client/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

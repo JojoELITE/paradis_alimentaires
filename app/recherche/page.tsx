@@ -46,7 +46,7 @@ export default function SearchPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('https://ecomerce-api-1-dp0w.onrender.com/api/products')
+        const res = await fetch('https://ecomerce-api-aotc.onrender.com//api/products')
 
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`)
@@ -91,7 +91,7 @@ export default function SearchPage() {
 
 
     try {
-      const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/cart/add", {
+      const response = await fetch("https://ecomerce-api-aotc.onrender.com//api/cart/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -169,8 +169,8 @@ export default function SearchPage() {
     // Si l'utilisateur est connecté, utiliser l'API
     try {
       const url = isFav
-        ? "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/remove"
-        : "https://ecomerce-api-1-dp0w.onrender.com/api/favorites/add"
+        ? "https://ecomerce-api-aotc.onrender.com//api/favorites/remove"
+        : "https://ecomerce-api-aotc.onrender.com//api/favorites/add"
 
       const response = await fetch(url, {
         method: "POST",

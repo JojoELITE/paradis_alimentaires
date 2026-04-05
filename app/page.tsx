@@ -27,7 +27,7 @@ export default function Home() {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        const res = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/pubs")
+        const res = await fetch("https://ecomerce-api-aotc.onrender.com/api/pubs")
         const data = await res.json()
 
         if (!data.success || !data.data?.data) return

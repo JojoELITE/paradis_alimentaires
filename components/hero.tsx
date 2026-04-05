@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 
-const API_BASE = "https://ecomerce-api-1-dp0w.onrender.com/api"
+const API_BASE = "https://ecomerce-api-aotc.onrender.com/api"
 
 interface Pub {
   id: string

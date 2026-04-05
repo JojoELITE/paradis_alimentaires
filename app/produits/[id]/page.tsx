@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 
-const API_URL = "https://ecomerce-api-1-dp0w.onrender.com/api"
+const API_URL = "https://ecomerce-api-aotc.onrender.com//api"
 
 interface Product {
   id: string
@@ -236,10 +236,10 @@ export default function ProductPage({
   return (
     <main className="pt-32 pb-16">
       <div className="container mx-auto px-4 max-w-6xl">
-        
+
         {/* PRODUCT MAIN SECTION */}
         <div className="grid md:grid-cols-2 gap-8 mb-12">
-          
+
           {/* LEFT - IMAGE GALLERY */}
           <div className="space-y-4">
             <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
@@ -254,7 +254,7 @@ export default function ProductPage({
                 />
               )}
             </div>
-            
+
             {/* Thumbnails */}
             {images.length > 1 && (
               <div className="flex gap-2">
@@ -392,8 +392,8 @@ export default function ProductPage({
 
             {/* Action Buttons */}
             <div className="flex gap-4 pt-4">
-              <Button 
-                onClick={handleAddToCart} 
+              <Button
+                onClick={handleAddToCart}
                 disabled={isAddingToCart || product.stock === 0}
                 className="flex-1"
                 size="lg"

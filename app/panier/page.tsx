@@ -10,7 +10,7 @@ import { useCart } from "@/hooks/use-cart"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 
-const API_BASE = "https://ecomerce-api-1-dp0w.onrender.com/api"
+const API_BASE = "https://ecomerce-api-aotc.onrender.com/api"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CouponData {

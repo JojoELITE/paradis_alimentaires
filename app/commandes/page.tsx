@@ -93,7 +93,7 @@ export default function OrdersPage() {
 
       setIsLoading(true)
       try {
-        const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${user.id}`)
+        const response = await fetch(`https://ecomerce-api-aotc.onrender.com//api/orders/${user.id}`)
         const data = await response.json()
 
         if (data.success) {
@@ -149,7 +149,7 @@ export default function OrdersPage() {
     if (!user?.id) return
 
     try {
-      const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${orderId}/cancel`, {
+      const response = await fetch(`https://ecomerce-api-aotc.onrender.com//api/orders/${orderId}/cancel`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -165,7 +165,7 @@ export default function OrdersPage() {
           description: "Votre commande a été annulée avec succès.",
         })
         // Recharger les commandes
-        const refreshResponse = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${user.id}`)
+        const refreshResponse = await fetch(`https://ecomerce-api-aotc.onrender.com//api/orders/${user.id}`)
         const refreshData = await refreshResponse.json()
         if (refreshData.success) {
           const formattedOrders = refreshData.data.map((order: any) => ({
@@ -211,7 +211,7 @@ export default function OrdersPage() {
     if (!user?.id) return
 
     try {
-      const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/orders/${orderId}/invoice/${user.id}`)
+      const response = await fetch(`https://ecomerce-api-aotc.onrender.com//api/orders/${orderId}/invoice/${user.id}`)
       const data = await response.json()
 
       if (data.success) {
@@ -225,7 +225,7 @@ export default function OrdersPage() {
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
-        
+
         toast({
           title: "Facture téléchargée",
           description: "La facture a été téléchargée avec succès.",
@@ -461,17 +461,17 @@ export default function OrdersPage() {
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
                     {order.status === "pending" && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="text-red-600 hover:text-red-700"
                         onClick={() => handleCancelOrder(order.id)}
                       >
                         Annuler la commande
                       </Button>
                     )}
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => handleDownloadInvoice(order.id)}
                     >
@@ -587,8 +587,8 @@ export default function OrdersPage() {
                     Fermer
                   </Button>
                   {selectedOrder.status === "pending" && (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="text-red-600"
                       onClick={() => {
                         handleCancelOrder(selectedOrder.id)
@@ -598,7 +598,7 @@ export default function OrdersPage() {
                       Annuler la commande
                     </Button>
                   )}
-                  <Button 
+                  <Button
                     variant="outline"
                     onClick={() => handleDownloadInvoice(selectedOrder.id)}
                   >

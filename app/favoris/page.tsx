@@ -32,11 +32,11 @@ export default function FavoritesPage() {
       if (user?.id) {
         setIsLoading(true)
         try {
-          const response = await fetch(`https://ecomerce-api-1-dp0w.onrender.com/api/favorites?userId=${user.id}`)
+          const response = await fetch(`https://ecomerce-api-aotc.onrender.com//api/favorites?userId=${user.id}`)
           const data = await response.json()
-          
+
           console.log("🔵 Favoris depuis API:", data)
-          
+
           if (data.success && data.data) {
             // Convertir les données API au format local
             const favoriteItems = data.data.map((product: any) => ({
@@ -81,7 +81,7 @@ export default function FavoritesPage() {
   const handleRemoveFavorite = async (item: FavoriteItem) => {
     // Supprimer localement d'abord pour l'UI réactive
     removeItem(item.id)
-    
+
     toast({
       title: "Produit retiré des favoris",
       description: `${item.name} a été retiré de vos favoris.`,
@@ -90,7 +90,7 @@ export default function FavoritesPage() {
     // Si l'utilisateur est connecté, supprimer aussi via l'API
     if (user?.id) {
       try {
-        const response = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/favorites/remove", {
+        const response = await fetch("https://ecomerce-api-aotc.onrender.com//api/favorites/remove", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -219,8 +219,8 @@ export default function FavoritesPage() {
               </CardContent>
 
               <CardFooter className="p-4 pt-0">
-                <Button 
-                  className="w-full gap-2 bg-primary hover:bg-primary/90" 
+                <Button
+                  className="w-full gap-2 bg-primary hover:bg-primary/90"
                   onClick={() => handleAddToCart(item)}
                 >
                   <ShoppingCart className="h-4 w-4" />

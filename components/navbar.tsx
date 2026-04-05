@@ -58,7 +58,7 @@ export default function Navbar() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/categories")
+        const res = await fetch("https://ecomerce-api-aotc.onrender.com/api/categories")
         if (!res.ok) throw new Error("Erreur lors de la récupération des catégories")
         const data = await res.json()
         const formatted = data.map((cat: any) => ({
@@ -404,7 +404,7 @@ export default function Navbar() {
                       {!user.role && "Client"}
                     </p>
                   </div>
-                  
+
                   {/* TOUJOURS visible pour tout utilisateur connecté */}
                   <Link href="/profil" className="block py-2 text-gray-800 hover:text-primary" onClick={() => setIsOpen(false)}>
                     Mon profil
@@ -415,14 +415,14 @@ export default function Navbar() {
                   <Link href="/favoris" className="block py-2 text-gray-800 hover:text-primary" onClick={() => setIsOpen(false)}>
                     Mes favoris
                   </Link>
-                  
+
                   {/* Dashboard UNIQUEMENT pour admin, superadmin ou marchant */}
                   {(user.role === "admin" || user.role === "superadmin" || user.role === "marchant") && (
                     <Link href="/dashboard" className="block py-2 text-primary font-medium" onClick={() => setIsOpen(false)}>
                       Mon dashboard
                     </Link>
                   )}
-                  
+
                   <button onClick={handleLogout} className="block py-2 text-red-600 hover:text-red-700 w-full text-left mt-2">
                     Déconnexion
                   </button>
@@ -437,7 +437,7 @@ export default function Navbar() {
                   </Link>
                 </>
               )}
-              
+
               <Link href="/moyens-de-paiement" className="block py-2 text-gray-800 hover:text-primary" onClick={() => setIsOpen(false)}>
                 Moyens de Paiement
               </Link>

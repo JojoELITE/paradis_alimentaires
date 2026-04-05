@@ -403,7 +403,7 @@ export default function MerchantDashboard() {
     }
   }
 
-  const BASE = "https://ecomerce-api-1-dp0w.onrender.com/api/merchant"
+  const BASE = "https://ecomerce-api-aotc.onrender.com/api/merchant"
 
   // ─────────────────────────────────────────
   // Fetchers

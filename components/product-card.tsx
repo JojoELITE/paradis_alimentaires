@@ -47,7 +47,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     e.stopPropagation()
 
     try {
-      await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/cart/add", {
+      await fetch("https://ecomerce-api-aotc.onrender.com/cart/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

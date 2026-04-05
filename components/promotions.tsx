@@ -37,7 +37,7 @@ function useCoupons() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("https://ecomerce-api-1-dp0w.onrender.com/api/coupons", {
+      const res = await fetch("https://ecomerce-api-aotc.onrender.compi/coupons", {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -222,9 +222,9 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
             <div className="w-full bg-gray-200 rounded-full h-1 overflow-hidden">
               <div
                 className={`h-full transition-all duration-700 rounded-full ${usagePercentage >= 80 ? 'bg-red-500' :
-                    usagePercentage >= 60 ? 'bg-orange-500' :
-                      usagePercentage >= 40 ? 'bg-yellow-500' :
-                        'bg-green-500'
+                  usagePercentage >= 60 ? 'bg-orange-500' :
+                    usagePercentage >= 40 ? 'bg-yellow-500' :
+                      'bg-green-500'
                   }`}
                 style={{ width: `${usagePercentage}%` }}
               />

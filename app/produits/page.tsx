@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-const API_URL = "https://ecomerce-api-1-dp0w.onrender.com/api"
+const API_URL = "https://ecomerce-api-aotc.onrender.com//api"
 
 interface Product {
   id: string
@@ -90,9 +90,9 @@ export default function AllProductsPage() {
             isOnSale: product.isOnSale === true,
             rating: product.rating || 0
           }))
-          
+
           setProducts(productsData)
-          
+
           // Extraire les catégories uniques (filtrer les null)
           const uniqueCategories = [...new Set(productsData.map((p: Product) => p.category).filter(Boolean))]
           setCategories(uniqueCategories as string[])
@@ -118,7 +118,7 @@ export default function AllProductsPage() {
   // Ajouter au panier
   const handleAddToCart = async (product: Product) => {
     setAddingToCart(product.id)
-    
+
     const userId = user?.id || null
 
     try {
@@ -253,7 +253,7 @@ export default function AllProductsPage() {
   return (
     <main className="pt-32 pb-16">
       <div className="container mx-auto px-4">
-        
+
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-4">Nos Produits</h1>
@@ -274,7 +274,7 @@ export default function AllProductsPage() {
                 className="pl-9"
               />
             </div>
-            
+
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
               <SelectTrigger className="w-full md:w-[200px]">
                 <SelectValue placeholder="Catégorie" />
@@ -312,8 +312,8 @@ export default function AllProductsPage() {
         {sortedProducts.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Aucun produit trouvé</p>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="mt-4"
               onClick={() => {
                 setSearchTerm("")
@@ -328,7 +328,7 @@ export default function AllProductsPage() {
             {sortedProducts.map((product) => {
               const imageUrl = getImageUrl(product)
               const isFav = isFavorite(product.id)
-              
+
               return (
                 <div
                   key={product.id}
@@ -370,7 +370,7 @@ export default function AllProductsPage() {
                         {product.category}
                       </p>
                     )}
-                    
+
                     <Link href={`/produits/${product.id}`}>
                       <h3 className="font-semibold text-lg mb-2 line-clamp-2 hover:text-primary transition-colors">
                         {product.name}
@@ -424,7 +424,7 @@ export default function AllProductsPage() {
                         )}
                         Ajouter
                       </Button>
-                      
+
                       <Button
                         variant="outline"
                         size="sm"
@@ -447,7 +447,7 @@ export default function AllProductsPage() {
         )}
 
         {/* Statistiques */}
-       
+
       </div>
     </main>
   )

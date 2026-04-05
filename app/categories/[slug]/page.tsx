@@ -6,15 +6,15 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Star, 
-  Heart, 
-  ShoppingCart, 
-  Minus, 
-  Plus, 
-  Truck, 
-  ShieldCheck, 
-  RotateCcw, 
+import {
+  Star,
+  Heart,
+  ShoppingCart,
+  Minus,
+  Plus,
+  Truck,
+  ShieldCheck,
+  RotateCcw,
   Loader2,
   Check,
   Share2,
@@ -28,7 +28,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 
-const API_URL = "https://ecomerce-api-1-dp0w.onrender.com/api"
+const API_URL = "https://ecomerce-api-aotc.onrender.com/api"
 
 interface Product {
   id: number
@@ -76,7 +76,7 @@ export default function ProductPage() {
         })
 
         const data = await res.json()
-        
+
         if (!res.ok || !data.success) {
           notFound()
           return
@@ -200,7 +200,7 @@ export default function ProductPage() {
     try {
       const isFav = isFavorite(product.id)
       const url = `${API_URL}/favorites/${isFav ? "remove" : "add"}`
-      
+
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -296,14 +296,14 @@ export default function ProductPage() {
 
   const isLowStock = product.stock <= 5 && product.stock > 0
   const isOutOfStock = product.stock === 0
-  const discount = product.old_price 
-    ? Math.round(((product.old_price - product.price) / product.old_price) * 100) 
+  const discount = product.old_price
+    ? Math.round(((product.old_price - product.price) / product.old_price) * 100)
     : 0
 
   return (
     <main className="pt-28 pb-16 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       <div className="container mx-auto px-4 max-w-6xl">
-        
+
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
           <Link href="/" className="hover:text-primary transition-colors">Accueil</Link>
@@ -315,7 +315,7 @@ export default function ProductPage() {
 
         {/* Product Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-          
+
           {/* LEFT - Images */}
           <div className="space-y-4">
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 shadow-lg">
@@ -338,7 +338,7 @@ export default function ProductPage() {
                 </Badge>
               )}
             </div>
-            
+
             {/* Thumbnails */}
             <div className="flex gap-3 overflow-x-auto pb-2">
               {[product.image_url].map((img, idx) => (
@@ -365,7 +365,7 @@ export default function ProductPage() {
           <div className="space-y-6">
             {/* Category */}
             <div>
-              <Link 
+              <Link
                 href={`/categories/${product.category?.toLowerCase() || "produits"}`}
                 className="text-sm text-primary hover:underline"
               >

@@ -28,7 +28,7 @@ export default function FeaturedProducts() {
     const fetchProducts = async () => {
       try {
         const res = await fetch(
-          "https://ecomerce-api-1-dp0w.onrender.com/api/products"
+          "https://ecomerce-api-aotc.onrender.com/api/products"
         )
 
         if (!res.ok) {
