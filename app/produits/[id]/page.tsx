@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 
-const API_URL = "https://ecomerce-api-aotc.onrender.com//api"
+const API_URL = "https://ecomerce-api-aotc.onrender.com/api"
 
 interface Product {
   id: string
