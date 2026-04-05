@@ -102,7 +102,6 @@ function usePromotions() {
     setLoading(true)
     setError(null)
     try {
-      // Appelle l'API AdonisJS que tu as créée
       const res = await fetch("https://ecomerce-api-aotc.onrender.com/api/promotions?status=active", {
         headers: {
           "Content-Type": "application/json",
@@ -124,7 +123,6 @@ function usePromotions() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue")
-      // Fallback: afficher des promotions par défaut si l'API est indisponible
       setPromotions([])
     } finally {
       setLoading(false)
@@ -374,9 +372,13 @@ export default function PromotionsPage() {
   const activeCoupons = coupons.filter(c => c.status === "active")
   
   // Séparer les différents types de promotions
-  const banners = promotions.filter(p => p.type === "banner")
-  const flashSales = promotions.filter(p => p.type === "flash_sale")
-  const categoryOffers = promotions.filter(p => p.type === "category_offer")
+  const banners = promotions.filter(p => p.type === "banner" && p.status === "active")
+  const flashSales = promotions.filter(p => p.type === "flash_sale" && p.status === "active")
+  const categoryOffers = promotions.filter(p => p.type === "category_offer" && p.status === "active")
+
+  // Prendre la première bannière pour la grande bannière si elle existe
+  const mainBanner = banners[0]
+  const secondaryBanners = banners.slice(1, 3)
 
   return (
     <section className="py-16 bg-muted/30">
@@ -389,50 +391,7 @@ export default function PromotionsPage() {
           </p>
         </div>
 
-        {/* Banners dynamiques depuis l'API */}
-        {!promotionsLoading && banners.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {banners.slice(0, 2).map((promo) => (
-              <PromotionBanner key={promo.id} promotion={promo} />
-            ))}
-          </div>
-        )}
-
-        {/* Fallback: anciennes bannières statiques si pas de données */}
-        {!promotionsLoading && banners.length === 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="relative overflow-hidden rounded-xl group">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/80 to-transparent z-10" />
-              <Image src="/images/juice.png" alt="Promotion jus de fruits" width={600} height={400}
-                className="w-full h-[300px] object-cover transition-transform duration-700 group-hover:scale-110" />
-              <div className="absolute inset-0 z-20 flex flex-col justify-center p-8">
-                <div className="max-w-xs">
-                  <h3 className="text-white text-2xl font-bold mb-2">Jus de fruits frais</h3>
-                  <p className="text-white/90 mb-4">Jusqu'à 30% de réduction sur une sélection de jus frais</p>
-                  <Link href="/promotions/fruits">
-                    <Button className="bg-white text-primary hover:bg-white/90">En profiter</Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative overflow-hidden rounded-xl group">
-              <div className="absolute inset-0 bg-gradient-to-r from-green-600/80 to-transparent z-10" />
-              <Image src="/images/tomato.png" alt="Promotion produits bio" width={600} height={400}
-                className="w-full h-[300px] object-cover transition-transform duration-700 group-hover:scale-110" />
-              <div className="absolute inset-0 z-20 flex flex-col justify-center p-8">
-                <div className="max-w-xs">
-                  <h3 className="text-white text-2xl font-bold mb-2">Produits bio</h3>
-                  <p className="text-white/90 mb-4">Découvrez notre nouvelle gamme de produits biologiques</p>
-                  <Link href="/promotions/bio">
-                    <Button className="bg-white text-green-600 hover:bg-white/90">Découvrir</Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
+        {/* Loading */}
         {promotionsLoading && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <PromotionSkeleton />
@@ -440,8 +399,49 @@ export default function PromotionsPage() {
           </div>
         )}
 
+        {/* Erreur API */}
+        {promotionsError && !promotionsLoading && (
+          <div className="text-center py-10 bg-white rounded-xl border border-dashed border-red-200">
+            <Gift className="w-8 h-8 mx-auto mb-3 text-red-300" />
+            <p className="text-sm font-medium text-red-500 mb-1">Impossible de charger les promotions</p>
+            <p className="text-xs text-muted-foreground mb-4">{promotionsError}</p>
+            <Button variant="outline" size="sm" onClick={refetchPromotions} className="gap-2">
+              <RefreshCw className="w-4 h-4" /> Réessayer
+            </Button>
+          </div>
+        )}
+
+        {/* Bannières depuis l'API uniquement */}
+        {!promotionsLoading && !promotionsError && (
+          <>
+            {/* Grande bannière principale */}
+            {mainBanner && (
+              <div className="mb-8">
+                <PromotionBanner promotion={mainBanner} />
+              </div>
+            )}
+
+            {/* Bannières secondaires (2 colonnes) */}
+            {secondaryBanners.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {secondaryBanners.map((promo) => (
+                  <PromotionBanner key={promo.id} promotion={promo} />
+                ))}
+              </div>
+            )}
+
+            {/* Aucune bannière */}
+            {banners.length === 0 && !promotionsLoading && (
+              <div className="text-center py-10 bg-white rounded-xl border border-dashed">
+                <Gift className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm text-muted-foreground">Aucune promotion disponible pour le moment</p>
+              </div>
+            )}
+          </>
+        )}
+
         {/* Flash Sales */}
-        {!promotionsLoading && flashSales.length > 0 && (
+        {!promotionsLoading && !promotionsError && flashSales.length > 0 && (
           <div className="mt-8">
             <div className="flex items-center gap-3 mb-4">
               <Gift className="w-6 h-6 text-red-500" />
@@ -455,35 +455,22 @@ export default function PromotionsPage() {
           </div>
         )}
 
-        {/* Grande bannière (première promotion de type banner ou fallback) */}
-        {!promotionsLoading && (banners[2] || true) && (
-          <div className="mt-8 relative overflow-hidden rounded-xl group">
-            {banners[2] ? (
-              <PromotionBanner promotion={banners[2]} />
-            ) : (
-              <>
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-transparent z-10" />
-                <Image src="/images/biscuit.png" alt="Promotion livraison gratuite" width={1200} height={400}
-                  className="w-full h-[250px] object-cover transition-transform duration-700 group-hover:scale-105" />
-                <div className="absolute inset-0 z-20 flex flex-col justify-center p-8">
-                  <div className="max-w-lg">
-                    <h3 className="text-white text-3xl font-bold mb-2">Livraison gratuite</h3>
-                    <p className="text-white/90 mb-4">
-                      Pour toute commande supérieure à 50 000 FCFA — Offre valable jusqu'au 31 mai
-                    </p>
-                    <Link href="/promotions/livraison">
-                      <Button size="lg" className="bg-primary hover:bg-primary/90 text-white">
-                        Commander maintenant
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </>
-            )}
+        {/* Category Offers */}
+        {!promotionsLoading && !promotionsError && categoryOffers.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center gap-3 mb-4">
+              <Tag className="w-6 h-6 text-green-500" />
+              <h3 className="text-xl font-bold">Offres par catégorie</h3>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {categoryOffers.map((promo) => (
+                <PromotionBanner key={promo.id} promotion={promo} />
+              ))}
+            </div>
           </div>
         )}
 
-        {/* ── Coupons (inchangé) ── */}
+        {/* ── Coupons ── */}
         <div className="mt-12">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
