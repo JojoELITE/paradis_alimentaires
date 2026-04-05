@@ -51,7 +51,7 @@ interface KYCData {
 }
 
 // --- Constantes ---
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ecomerce-api-aotc.onrender.com/"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://ecomerce-api-aotc.onrender.com"
 const PAYMENT_API_URL = process.env.NEXT_PUBLIC_PAYMENT_API_URL || "https://apist.onrender.com"
 
 const paymentMethods = [
