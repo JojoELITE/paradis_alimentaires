@@ -76,8 +76,8 @@ export default function CartPage() {
 
         if (data.success && data.data) {
           const cartItems = data.data.items.map((item: any) => ({
-            id: item.id, // ✅ FIX PRINCIPAL
-            productId: item.product_id, // ✅ AJOUT
+            id: item.id,
+            productId: item.product_id,
             name: item.product?.name || "Produit",
             price:
               typeof item.product?.price === "string"
@@ -104,7 +104,6 @@ export default function CartPage() {
   }, [user, setItems])
 
   // ─── Synchronisation avec l'API ──────────────────────────────────────────────
-  // ─── Synchronisation avec l'API ──────────────────────────────────────────────
   useEffect(() => {
     if (!user?.id || items.length === 0) return
 
@@ -129,7 +128,7 @@ export default function CartPage() {
     return () => clearTimeout(timeoutId)
   }, [items, user])
 
-  // ─── Gestion de la quantité (CORRECTION ICI) ─────────────────────────────────
+  // ─── Gestion de la quantité ─────────────────────────────────────────────────
   const handleIncrement = (id: string, currentQuantity: number) => {
     setUpdatingId(id)
     updateQuantity(id, currentQuantity + 1)
@@ -149,7 +148,7 @@ export default function CartPage() {
     setTimeout(() => setUpdatingId(null), 300)
   }
 
-  // ─── Appliquer un coupon ─────────────────────────────────────────────────────
+  // ─── Appliquer un coupon (CORRECTION ICI) ─────────────────────────────────────
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return
 
@@ -174,16 +173,26 @@ export default function CartPage() {
       const data = await response.json()
 
       if (data.success) {
-        const discountAmountValue = data.data.discount_amount ?? 0
+        // ✅ CORRECTION : Vérifier que discount_amount existe
+        const discountAmountValue = data.data?.discount_amount ?? 0
+        
+        // ✅ CORRECTION : Vérifier que coupon existe
+        const coupon = data.data?.coupon ?? {
+          id: "",
+          type: "fixed",
+          discount: 0,
+          description: null,
+          remaining_uses: null,
+        }
 
         setAppliedCoupon({
           coupon: {
-            id: data.data.coupon?.id ?? "",
+            id: coupon.id,
             code: couponCode,
-            type: data.data.coupon?.type ?? "fixed",
-            discount: data.data.coupon?.discount ?? 0,
-            description: data.data.coupon?.description ?? null,
-            remaining_uses: data.data.remaining_uses ?? null,
+            type: coupon.type,
+            discount: coupon.discount,
+            description: coupon.description,
+            remaining_uses: coupon.remaining_uses,
             valid_until: null,
           },
           pricing: {
