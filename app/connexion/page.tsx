@@ -27,7 +27,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const res = await fetch('https://ecomerce-api-aotc.onrender.com//api/client/login', {
+      const res = await fetch('https://ecomerce-api-aotc.onrender.com/api/client/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
