@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 import Link from "next/link"
-import { Tag, Copy, Check, Clock, Percent, Banknote, RefreshCw, TrendingDown } from "lucide-react"
+import { Tag, Copy, Check, Clock, Percent, Banknote, RefreshCw, TrendingDown, Gift } from "lucide-react"
 
 // ─────────────────────────────────────────────
 // Types
@@ -25,8 +25,27 @@ interface Coupon {
   status: "active" | "expired" | "disabled"
 }
 
+interface Promotion {
+  id: string
+  title: string
+  description: string | null
+  image_url: string | null
+  banner_image: string | null
+  type: "banner" | "flash_sale" | "category_offer"
+  discount_percentage: number | null
+  discount_amount: number | null
+  category: string | null
+  link: string | null
+  button_text: string
+  min_order_amount: number | null
+  start_date: string | null
+  end_date: string | null
+  status: "active" | "expired" | "upcoming" | "disabled"
+  priority: number
+}
+
 // ─────────────────────────────────────────────
-// Hook — récupère TOUT sans filtre
+// Hook — récupère les coupons
 // ─────────────────────────────────────────────
 function useCoupons() {
   const [coupons, setCoupons] = useState<Coupon[]>([])
@@ -48,7 +67,6 @@ function useCoupons() {
 
       const json = await res.json()
       console.log(json)
-      // Gérer tous les formats possibles retournés par AdonisJS
       if (json.success && Array.isArray(json.data)) {
         setCoupons(json.data)
       } else if (json.success && Array.isArray(json.data?.data)) {
@@ -73,6 +91,52 @@ function useCoupons() {
 }
 
 // ─────────────────────────────────────────────
+// Hook — récupère les promotions (bannières)
+// ─────────────────────────────────────────────
+function usePromotions() {
+  const [promotions, setPromotions] = useState<Promotion[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchPromotions = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      // Appelle l'API AdonisJS que tu as créée
+      const res = await fetch("https://ecomerce-api-aotc.onrender.com/api/promotions?status=active", {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      })
+
+      if (!res.ok) throw new Error(`Erreur ${res.status} : ${res.statusText}`)
+
+      const json = await res.json()
+      console.log("Promotions:", json)
+
+      if (json.success && Array.isArray(json.data)) {
+        setPromotions(json.data)
+      } else if (Array.isArray(json)) {
+        setPromotions(json)
+      } else {
+        setPromotions([])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue")
+      // Fallback: afficher des promotions par défaut si l'API est indisponible
+      setPromotions([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchPromotions() }, [])
+
+  return { promotions, loading, error, refetch: fetchPromotions }
+}
+
+// ─────────────────────────────────────────────
 // CouponCard avec effet de dégradé progressif
 // ─────────────────────────────────────────────
 function CouponCard({ coupon }: { coupon: Coupon }) {
@@ -84,12 +148,10 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Calcul du pourcentage d'utilisation
   const usagePercentage = coupon.usage_limit && coupon.used_count !== null
     ? (coupon.used_count / coupon.usage_limit) * 100
     : 0
 
-  // Déterminer l'opacité et la couleur en fonction du pourcentage d'utilisation
   const getOpacityAndColor = () => {
     if (usagePercentage >= 100) return { opacity: 0, color: "bg-gray-100", border: "border-gray-100", text: "text-gray-300" }
     if (usagePercentage >= 80) return { opacity: 0.3, color: "bg-orange-100", border: "border-orange-200", text: "text-orange-300" }
@@ -111,17 +173,12 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
     })
   }
 
-  const accentColor =
-    coupon.status === "active" ? "bg-primary" :
-      coupon.status === "expired" ? "bg-red-400" : "bg-gray-300"
-
   const statusLabel = { active: "Actif", expired: "Expiré", disabled: "Désactivé" }[coupon.status]
   const statusClass =
     coupon.status === "active" ? "bg-green-500/10 text-green-600 border-green-200" :
       coupon.status === "expired" ? "bg-red-500/10 text-red-500 border-red-200" :
         "bg-gray-100 text-gray-400 border-gray-200"
 
-  // Si le coupon est totalement utilisé (100%), on ne l'affiche pas
   if (usagePercentage >= 100 && coupon.status === "active") {
     return null
   }
@@ -135,7 +192,6 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
         transition: "all 0.5s ease-in-out"
       }}
     >
-      {/* Bande gauche avec dégradé en fonction de l'utilisation */}
       <div
         className={`w-2 shrink-0 transition-all duration-500`}
         style={{
@@ -151,10 +207,8 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
         }}
       />
 
-      {/* Encoche */}
       <div className="absolute left-[6px] top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-muted border border-border z-10" />
 
-      {/* Réduction */}
       <div className={`flex items-center justify-center w-20 shrink-0 ${color} border-r border-dashed ${border}`}>
         <div className="text-center px-1">
           <p className={`font-black text-lg leading-none ${text}`}>{formatDiscount()}</p>
@@ -164,7 +218,6 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
         </div>
       </div>
 
-      {/* Contenu */}
       <div className="flex-1 px-4 py-3 min-w-0">
         <div className="flex items-center justify-between mb-1 gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
@@ -216,7 +269,6 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
           )}
         </div>
 
-        {/* Barre de progression d'utilisation */}
         {usagePercentage > 0 && usagePercentage < 100 && (
           <div className="mt-2">
             <div className="w-full bg-gray-200 rounded-full h-1 overflow-hidden">
@@ -231,6 +283,56 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// PromotionBanner — Affiche une bannière promo
+// ─────────────────────────────────────────────
+function PromotionBanner({ promotion }: { promotion: Promotion }) {
+  const imageUrl = promotion.banner_image || promotion.image_url || "/placeholder.png"
+  
+  const discountText = promotion.discount_percentage 
+    ? `-${promotion.discount_percentage}%`
+    : promotion.discount_amount 
+      ? `-${promotion.discount_amount} FCFA`
+      : null
+
+  const gradientColors: Record<string, string> = {
+    banner: "from-primary/80 to-transparent",
+    flash_sale: "from-red-600/80 to-transparent",
+    category_offer: "from-green-600/80 to-transparent",
+  }
+
+  const gradient = gradientColors[promotion.type] || "from-primary/80 to-transparent"
+
+  return (
+    <div className="relative overflow-hidden rounded-xl group">
+      <div className={`absolute inset-0 bg-gradient-to-r ${gradient} z-10`} />
+      <Image 
+        src={imageUrl} 
+        alt={promotion.title} 
+        width={600} 
+        height={400}
+        className="w-full h-[300px] object-cover transition-transform duration-700 group-hover:scale-110"
+      />
+      <div className="absolute inset-0 z-20 flex flex-col justify-center p-8">
+        <div className="max-w-xs">
+          {discountText && (
+            <Badge className="mb-2 bg-white/20 text-white border-0">
+              {discountText}
+            </Badge>
+          )}
+          <h3 className="text-white text-2xl font-bold mb-2">{promotion.title}</h3>
+          <p className="text-white/90 mb-4">{promotion.description}</p>
+          <Link href={promotion.link || `/promotions/${promotion.id}`}>
+            <Button className="bg-white text-primary hover:bg-white/90">
+              {promotion.button_text || "En profiter"}
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   )
@@ -254,14 +356,27 @@ function CouponSkeleton() {
   )
 }
 
+function PromotionSkeleton() {
+  return (
+    <div className="relative overflow-hidden rounded-xl bg-gray-200 animate-pulse h-[300px]">
+      <div className="absolute inset-0 bg-gradient-to-r from-gray-300 to-transparent" />
+    </div>
+  )
+}
+
 // ─────────────────────────────────────────────
 // Page
 // ─────────────────────────────────────────────
-export default function Promotions() {
-  const { coupons, loading, error, refetch } = useCoupons()
+export default function PromotionsPage() {
+  const { coupons, loading: couponsLoading, error: couponsError, refetch: refetchCoupons } = useCoupons()
+  const { promotions, loading: promotionsLoading, error: promotionsError, refetch: refetchPromotions } = usePromotions()
 
-  // Filtrer les coupons actifs (optionnel)
   const activeCoupons = coupons.filter(c => c.status === "active")
+  
+  // Séparer les différents types de promotions
+  const banners = promotions.filter(p => p.type === "banner")
+  const flashSales = promotions.filter(p => p.type === "flash_sale")
+  const categoryOffers = promotions.filter(p => p.type === "category_offer")
 
   return (
     <section className="py-16 bg-muted/30">
@@ -274,94 +389,135 @@ export default function Promotions() {
           </p>
         </div>
 
-        {/* Banners */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="relative overflow-hidden rounded-xl group">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/80 to-transparent z-10" />
-            <Image src="/images/juice.png" alt="Promotion jus de fruits" width={600} height={400}
-              className="w-full h-[300px] object-cover transition-transform duration-700 group-hover:scale-110" />
-            <div className="absolute inset-0 z-20 flex flex-col justify-center p-8">
-              <div className="max-w-xs">
-                <h3 className="text-white text-2xl font-bold mb-2">Jus de fruits frais</h3>
-                <p className="text-white/90 mb-4">Jusqu'à 30% de réduction sur une sélection de jus frais</p>
-                <Link href="/promotions/fruits">
-                  <Button className="bg-white text-primary hover:bg-white/90">En profiter</Button>
-                </Link>
+        {/* Banners dynamiques depuis l'API */}
+        {!promotionsLoading && banners.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {banners.slice(0, 2).map((promo) => (
+              <PromotionBanner key={promo.id} promotion={promo} />
+            ))}
+          </div>
+        )}
+
+        {/* Fallback: anciennes bannières statiques si pas de données */}
+        {!promotionsLoading && banners.length === 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="relative overflow-hidden rounded-xl group">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/80 to-transparent z-10" />
+              <Image src="/images/juice.png" alt="Promotion jus de fruits" width={600} height={400}
+                className="w-full h-[300px] object-cover transition-transform duration-700 group-hover:scale-110" />
+              <div className="absolute inset-0 z-20 flex flex-col justify-center p-8">
+                <div className="max-w-xs">
+                  <h3 className="text-white text-2xl font-bold mb-2">Jus de fruits frais</h3>
+                  <p className="text-white/90 mb-4">Jusqu'à 30% de réduction sur une sélection de jus frais</p>
+                  <Link href="/promotions/fruits">
+                    <Button className="bg-white text-primary hover:bg-white/90">En profiter</Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-xl group">
+              <div className="absolute inset-0 bg-gradient-to-r from-green-600/80 to-transparent z-10" />
+              <Image src="/images/tomato.png" alt="Promotion produits bio" width={600} height={400}
+                className="w-full h-[300px] object-cover transition-transform duration-700 group-hover:scale-110" />
+              <div className="absolute inset-0 z-20 flex flex-col justify-center p-8">
+                <div className="max-w-xs">
+                  <h3 className="text-white text-2xl font-bold mb-2">Produits bio</h3>
+                  <p className="text-white/90 mb-4">Découvrez notre nouvelle gamme de produits biologiques</p>
+                  <Link href="/promotions/bio">
+                    <Button className="bg-white text-green-600 hover:bg-white/90">Découvrir</Button>
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
+        )}
 
-          <div className="relative overflow-hidden rounded-xl group">
-            <div className="absolute inset-0 bg-gradient-to-r from-green-600/80 to-transparent z-10" />
-            <Image src="/images/tomato.png" alt="Promotion produits bio" width={600} height={400}
-              className="w-full h-[300px] object-cover transition-transform duration-700 group-hover:scale-110" />
-            <div className="absolute inset-0 z-20 flex flex-col justify-center p-8">
-              <div className="max-w-xs">
-                <h3 className="text-white text-2xl font-bold mb-2">Produits bio</h3>
-                <p className="text-white/90 mb-4">Découvrez notre nouvelle gamme de produits biologiques</p>
-                <Link href="/promotions/bio">
-                  <Button className="bg-white text-green-600 hover:bg-white/90">Découvrir</Button>
-                </Link>
-              </div>
+        {promotionsLoading && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <PromotionSkeleton />
+            <PromotionSkeleton />
+          </div>
+        )}
+
+        {/* Flash Sales */}
+        {!promotionsLoading && flashSales.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center gap-3 mb-4">
+              <Gift className="w-6 h-6 text-red-500" />
+              <h3 className="text-xl font-bold">Flash Sales ⚡</h3>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {flashSales.map((promo) => (
+                <PromotionBanner key={promo.id} promotion={promo} />
+              ))}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Grande bannière */}
-        <div className="mt-8 relative overflow-hidden rounded-xl group">
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-transparent z-10" />
-          <Image src="/images/biscuit.png" alt="Promotion livraison gratuite" width={1200} height={400}
-            className="w-full h-[250px] object-cover transition-transform duration-700 group-hover:scale-105" />
-          <div className="absolute inset-0 z-20 flex flex-col justify-center p-8">
-            <div className="max-w-lg">
-              <h3 className="text-white text-3xl font-bold mb-2">Livraison gratuite</h3>
-              <p className="text-white/90 mb-4">
-                Pour toute commande supérieure à 50 000 FCFA — Offre valable jusqu'au 31 mai
-              </p>
-              <Link href="/promotions/livraison">
-                <Button size="lg" className="bg-primary hover:bg-primary/90 text-white">
-                  Commander maintenant
-                </Button>
-              </Link>
-            </div>
+        {/* Grande bannière (première promotion de type banner ou fallback) */}
+        {!promotionsLoading && (banners[2] || true) && (
+          <div className="mt-8 relative overflow-hidden rounded-xl group">
+            {banners[2] ? (
+              <PromotionBanner promotion={banners[2]} />
+            ) : (
+              <>
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-transparent z-10" />
+                <Image src="/images/biscuit.png" alt="Promotion livraison gratuite" width={1200} height={400}
+                  className="w-full h-[250px] object-cover transition-transform duration-700 group-hover:scale-105" />
+                <div className="absolute inset-0 z-20 flex flex-col justify-center p-8">
+                  <div className="max-w-lg">
+                    <h3 className="text-white text-3xl font-bold mb-2">Livraison gratuite</h3>
+                    <p className="text-white/90 mb-4">
+                      Pour toute commande supérieure à 50 000 FCFA — Offre valable jusqu'au 31 mai
+                    </p>
+                    <Link href="/promotions/livraison">
+                      <Button size="lg" className="bg-primary hover:bg-primary/90 text-white">
+                        Commander maintenant
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-        </div>
+        )}
 
-        {/* ── Coupons ── */}
+        {/* ── Coupons (inchangé) ── */}
         <div className="mt-12">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <Tag className="w-5 h-5 text-primary" />
               <h3 className="text-xl font-bold">Codes promo disponibles</h3>
-              {!loading && activeCoupons.length > 0 && (
+              {!couponsLoading && activeCoupons.length > 0 && (
                 <Badge variant="secondary">
                   {activeCoupons.length} coupon{activeCoupons.length > 1 ? "s" : ""}
                 </Badge>
               )}
             </div>
-            {error && (
-              <Button variant="outline" size="sm" onClick={refetch} className="gap-2">
+            {couponsError && (
+              <Button variant="outline" size="sm" onClick={refetchCoupons} className="gap-2">
                 <RefreshCw className="w-4 h-4" />Réessayer
               </Button>
             )}
           </div>
 
-          {error ? (
+          {couponsError ? (
             <div className="text-center py-10 bg-white rounded-xl border border-dashed border-red-200">
               <Tag className="w-8 h-8 mx-auto mb-3 text-red-300" />
               <p className="text-sm font-medium text-red-500 mb-1">Impossible de charger les coupons</p>
-              <p className="text-xs text-muted-foreground">{error}</p>
+              <p className="text-xs text-muted-foreground">{couponsError}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {loading && Array.from({ length: 6 }).map((_, i) => <CouponSkeleton key={i} />)}
-              {!loading && activeCoupons.length === 0 && (
+              {couponsLoading && Array.from({ length: 6 }).map((_, i) => <CouponSkeleton key={i} />)}
+              {!couponsLoading && activeCoupons.length === 0 && (
                 <div className="col-span-full text-center py-10 text-muted-foreground bg-white rounded-xl border border-dashed">
                   <Tag className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   <p className="text-sm">Aucun coupon disponible pour le moment</p>
                 </div>
               )}
-              {!loading && activeCoupons.map((coupon) => <CouponCard key={coupon.id} coupon={coupon} />)}
+              {!couponsLoading && activeCoupons.map((coupon) => <CouponCard key={coupon.id} coupon={coupon} />)}
             </div>
           )}
         </div>
