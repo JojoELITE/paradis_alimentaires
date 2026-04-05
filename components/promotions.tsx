@@ -92,6 +92,7 @@ function useCoupons() {
 
 // ─────────────────────────────────────────────
 // Hook — récupère les promotions (bannières)
+// Routes: /api/promo, /api/banners, /api/flash-sales
 // ─────────────────────────────────────────────
 function usePromotions() {
   const [promotions, setPromotions] = useState<Promotion[]>([])
@@ -102,7 +103,8 @@ function usePromotions() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("https://ecomerce-api-aotc.onrender.com/api/promotions?status=active", {
+      // Utilise la route /api/promo (pas /api/promotions)
+      const res = await fetch("https://ecomerce-api-aotc.onrender.com/api/promo?status=active", {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -132,6 +134,96 @@ function usePromotions() {
   useEffect(() => { fetchPromotions() }, [])
 
   return { promotions, loading, error, refetch: fetchPromotions }
+}
+
+// ─────────────────────────────────────────────
+// Hook — récupère les bannières spécifiquement
+// Route: /api/banners
+// ─────────────────────────────────────────────
+function useBanners() {
+  const [banners, setBanners] = useState<Promotion[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchBanners = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch("https://ecomerce-api-aotc.onrender.com/api/banners", {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      })
+
+      if (!res.ok) throw new Error(`Erreur ${res.status} : ${res.statusText}`)
+
+      const json = await res.json()
+      console.log("Banners:", json)
+
+      if (json.success && Array.isArray(json.data)) {
+        setBanners(json.data)
+      } else if (Array.isArray(json)) {
+        setBanners(json)
+      } else {
+        setBanners([])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue")
+      setBanners([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchBanners() }, [])
+
+  return { banners, loading, error, refetch: fetchBanners }
+}
+
+// ─────────────────────────────────────────────
+// Hook — récupère les flash sales
+// Route: /api/flash-sales
+// ─────────────────────────────────────────────
+function useFlashSales() {
+  const [flashSales, setFlashSales] = useState<Promotion[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchFlashSales = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch("https://ecomerce-api-aotc.onrender.com/api/flash-sales", {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      })
+
+      if (!res.ok) throw new Error(`Erreur ${res.status} : ${res.statusText}`)
+
+      const json = await res.json()
+      console.log("Flash Sales:", json)
+
+      if (json.success && Array.isArray(json.data)) {
+        setFlashSales(json.data)
+      } else if (Array.isArray(json)) {
+        setFlashSales(json)
+      } else {
+        setFlashSales([])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue")
+      setFlashSales([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchFlashSales() }, [])
+
+  return { flashSales, loading, error, refetch: fetchFlashSales }
 }
 
 // ─────────────────────────────────────────────
@@ -367,18 +459,10 @@ function PromotionSkeleton() {
 // ─────────────────────────────────────────────
 export default function PromotionsPage() {
   const { coupons, loading: couponsLoading, error: couponsError, refetch: refetchCoupons } = useCoupons()
-  const { promotions, loading: promotionsLoading, error: promotionsError, refetch: refetchPromotions } = usePromotions()
+  const { banners, loading: bannersLoading, error: bannersError, refetch: refetchBanners } = useBanners()
+  const { flashSales, loading: flashLoading, error: flashError, refetch: refetchFlash } = useFlashSales()
 
   const activeCoupons = coupons.filter(c => c.status === "active")
-  
-  // Séparer les différents types de promotions
-  const banners = promotions.filter(p => p.type === "banner" && p.status === "active")
-  const flashSales = promotions.filter(p => p.type === "flash_sale" && p.status === "active")
-  const categoryOffers = promotions.filter(p => p.type === "category_offer" && p.status === "active")
-
-  // Prendre la première bannière pour la grande bannière si elle existe
-  const mainBanner = banners[0]
-  const secondaryBanners = banners.slice(1, 3)
 
   return (
     <section className="py-16 bg-muted/30">
@@ -391,58 +475,43 @@ export default function PromotionsPage() {
           </p>
         </div>
 
-        {/* Loading */}
-        {promotionsLoading && (
+        {/* Bannières depuis /api/banners */}
+        {!bannersLoading && !bannersError && banners.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {banners.slice(0, 2).map((promo) => (
+              <PromotionBanner key={promo.id} promotion={promo} />
+            ))}
+          </div>
+        )}
+
+        {bannersLoading && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <PromotionSkeleton />
             <PromotionSkeleton />
           </div>
         )}
 
-        {/* Erreur API */}
-        {promotionsError && !promotionsLoading && (
+        {bannersError && !bannersLoading && (
           <div className="text-center py-10 bg-white rounded-xl border border-dashed border-red-200">
             <Gift className="w-8 h-8 mx-auto mb-3 text-red-300" />
-            <p className="text-sm font-medium text-red-500 mb-1">Impossible de charger les promotions</p>
-            <p className="text-xs text-muted-foreground mb-4">{promotionsError}</p>
-            <Button variant="outline" size="sm" onClick={refetchPromotions} className="gap-2">
+            <p className="text-sm font-medium text-red-500 mb-1">Impossible de charger les bannières</p>
+            <p className="text-xs text-muted-foreground mb-4">{bannersError}</p>
+            <Button variant="outline" size="sm" onClick={refetchBanners} className="gap-2">
               <RefreshCw className="w-4 h-4" /> Réessayer
             </Button>
           </div>
         )}
 
-        {/* Bannières depuis l'API uniquement */}
-        {!promotionsLoading && !promotionsError && (
-          <>
-            {/* Grande bannière principale */}
-            {mainBanner && (
-              <div className="mb-8">
-                <PromotionBanner promotion={mainBanner} />
-              </div>
-            )}
-
-            {/* Bannières secondaires (2 colonnes) */}
-            {secondaryBanners.length > 0 && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {secondaryBanners.map((promo) => (
-                  <PromotionBanner key={promo.id} promotion={promo} />
-                ))}
-              </div>
-            )}
-
-            {/* Aucune bannière */}
-            {banners.length === 0 && !promotionsLoading && (
-              <div className="text-center py-10 bg-white rounded-xl border border-dashed">
-                <Gift className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm text-muted-foreground">Aucune promotion disponible pour le moment</p>
-              </div>
-            )}
-          </>
+        {/* Grande bannière supplémentaire si plus de 2 */}
+        {!bannersLoading && !bannersError && banners.length > 2 && (
+          <div className="mt-8">
+            <PromotionBanner promotion={banners[2]} />
+          </div>
         )}
 
-        {/* Flash Sales */}
-        {!promotionsLoading && !promotionsError && flashSales.length > 0 && (
-          <div className="mt-8">
+        {/* Flash Sales depuis /api/flash-sales */}
+        {!flashLoading && !flashError && flashSales.length > 0 && (
+          <div className="mt-12">
             <div className="flex items-center gap-3 mb-4">
               <Gift className="w-6 h-6 text-red-500" />
               <h3 className="text-xl font-bold">Flash Sales ⚡</h3>
@@ -455,17 +524,11 @@ export default function PromotionsPage() {
           </div>
         )}
 
-        {/* Category Offers */}
-        {!promotionsLoading && !promotionsError && categoryOffers.length > 0 && (
-          <div className="mt-8">
-            <div className="flex items-center gap-3 mb-4">
-              <Tag className="w-6 h-6 text-green-500" />
-              <h3 className="text-xl font-bold">Offres par catégorie</h3>
-            </div>
+        {flashLoading && (
+          <div className="mt-12">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {categoryOffers.map((promo) => (
-                <PromotionBanner key={promo.id} promotion={promo} />
-              ))}
+              <PromotionSkeleton />
+              <PromotionSkeleton />
             </div>
           </div>
         )}
